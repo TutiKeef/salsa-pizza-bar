@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Salsa Pizza Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0f0d0b;--s1:#1a1714;--s2:#231f1b;--s3:#2d2824;--s4:#38322c;
+  --orange:#ff6c1a;--red:#ff2b4a;--amber:#ffb800;--cream:#f0e8db;
+  --muted:#7a6e65;--border:#2a2420;--green:#22c55e;--blue:#4da6ff;
+  --fire:linear-gradient(135deg,#ff2b4a,#ff6c1a 55%,#ffb800);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;min-height:100vh;}
+
+/* LOGIN */
+#tela-login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:500;}
+.lb{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:32px 28px;width:100%;max-width:340px;}
+.lb-logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;background:var(--fire);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;}
+.lb-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.lb label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:7px;}
+.lb input{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color .2s;letter-spacing:4px;}
+.lb input:focus{border-color:var(--orange);}
+.btn-lg{width:100%;margin-top:16px;padding:13px;background:var(--fire);border:none;border-radius:8px;color:#0f0d0b;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+.err{color:var(--red);font-size:12px;margin-top:6px;text-align:center;}
+
+/* LAYOUT */
+header{background:var(--s1);border-bottom:1px solid var(--border);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;background:var(--fire);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hnav{display:flex;gap:4px;}
+.nb{background:transparent;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:6px 16px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.nb.on{background:var(--s2);color:var(--orange);}
+.nb:not(.on):hover{background:var(--s2);color:var(--cream);}
+main{max-width:1200px;margin:0 auto;padding:24px;}
+.sec{display:none;} .sec.on{display:block;}
+
+/* ── DASHBOARD ─────────────────────────────────────────── */
+.dash-header{margin-bottom:28px;}
+.dash-header h2{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:4px;}
+.dash-header p{font-size:13px;color:var(--muted);}
+
+/* Filtro período */
+.fp{display:flex;align-items:center;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+.fp-t{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);white-space:nowrap;}
+.pb{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;padding:5px 14px;border-radius:20px;cursor:pointer;transition:all .15s;}
+.pb.on{border-color:var(--orange);color:var(--orange);background:#2a1500;}
+
+/* KPIs topo */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--fire);}
+.kpi.green::before{background:var(--green);}
+.kpi.amber::before{background:var(--amber);}
+.kpi.blue::before{background:var(--blue);}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+.kpi-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--cream);line-height:1;}
+.kpi-val.o{color:var(--orange);}
+.kpi-val.g{color:var(--green);}
+.kpi-val.a{color:var(--amber);}
+.kpi-val.b{color:var(--blue);}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:6px;}
+
+/* Grid de gráficos */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.charts-grid.full{grid-template-columns:1fr;}
+.chart-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.chart-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+.chart-sub{font-size:12px;color:var(--s4);margin-bottom:16px;}
+.chart-wrap{position:relative;height:220px;}
+.chart-wrap.tall{height:280px;}
+.chart-wrap.short{height:160px;}
+
+/* Insights / percepções */
+.insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;}
+.insight{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.insight-titulo{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+.insight-bar-wrap{display:flex;flex-direction:column;gap:6px;}
+.insight-row{display:flex;align-items:center;gap:8px;}
+.insight-label{font-size:12px;color:var(--cream);min-width:80px;}
+.insight-track{flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden;}
+.insight-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+.insight-count{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--amber);min-width:24px;text-align:right;}
+
+/* Top itens */
+.top-lista{display:flex;flex-direction:column;gap:6px;}
+.top-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--s2);border-radius:8px;}
+.top-pos{font-family:'Syne',sans-serif;font-size:13px;font-weight:800;width:20px;color:var(--border);}
+.top-pos.p1{color:var(--amber);}
+.top-pos.p2{color:var(--muted);}
+.top-pos.p3{color:#cd7c2f;}
+.top-nome{flex:1;font-size:13px;}
+.top-bar-wrap{width:80px;height:4px;background:var(--s3);border-radius:2px;}
+.top-bar{height:100%;border-radius:2px;}
+.top-qty{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--amber);min-width:32px;text-align:right;}
+
+/* Comparativo evento/chuva */
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.comp-card{background:var(--s2);border-radius:10px;padding:14px;}
+.comp-tit{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+.comp-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;}
+.comp-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* ── CALENDÁRIO ────────────────────────────────────────── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.cal-mes{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.cnavb{background:transparent;border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cnavb:hover{border-color:var(--orange);color:var(--orange);}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:20px;}
+.cdow{text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:6px 0;}
+.cd{aspect-ratio:1;border-radius:8px;border:1px solid var(--border);background:var(--s1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all .15s;position:relative;}
+.cd.clicavel{cursor:pointer;}
+.cd.clicavel:hover{border-color:var(--orange);}
+.cd.sel{border-color:var(--orange);background:#2a1500;}
+.cd.vz{background:transparent;border-color:transparent;}
+.cd.hj .cdnum{color:var(--amber);}
+.cdnum{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.cd.sd .cdnum{color:var(--muted);}
+.cddot{width:6px;height:6px;border-radius:50%;}
+.cddot.aberto{background:var(--orange);}
+.cddot.fechado{background:var(--green);}
+.cd-fat{font-size:8px;color:var(--muted);line-height:1;}
+
+/* Detalhe do dia */
+.det{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:20px;display:none;}
+.det.vis{display:block;}
+.det-tit{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.det-sec{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin:16px 0 8px;}
+.det-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;}
+.det-chart-card{background:var(--s2);border-radius:10px;padding:14px;}
+.det-chart-tit{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+.det-chart-wrap{position:relative;height:180px;}
+
+/* Percepções badges */
+.perc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;}
+.perc{background:var(--s2);border-radius:8px;padding:10px 12px;}
+.perc-l{font-size:10px;color:var(--muted);margin-bottom:4px;}
+.perc-v{font-size:13px;font-weight:500;}
+.badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.b-ev{background:#2a1500;color:var(--orange);}
+.b-ok{background:#0a2a14;color:var(--green);}
+.b-neu{background:var(--s3);color:var(--muted);}
+
+/* ── HISTÓRICO ─────────────────────────────────────────── */
+.tw{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;overflow-x:auto;}
+.ht{width:100%;border-collapse:collapse;font-size:13px;min-width:540px;}
+.ht th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap;}
+.ht td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+.ht tr:last-child td{border-bottom:none;}
+.ht tr:hover td{background:var(--s2);}
+.pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
+.pab{background:#2a1500;color:var(--orange);}
+.pfe{background:#0a2a14;color:var(--green);}
+
+/* ── CARDÁPIO ──────────────────────────────────────────── */
+.ch-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap;}
+.ch-row h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;}
+.ch-row p{font-size:13px;color:var(--muted);margin-top:2px;}
+.btns-row{display:flex;gap:8px;flex-wrap:wrap;}
+.bst{background:var(--fire);border:none;border-radius:8px;color:#0f0d0b;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:9px 18px;cursor:pointer;transition:opacity .15s;}
+.bst:hover{opacity:.85;}
+.bac{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.bac:hover{border-color:var(--orange);color:var(--orange);}
+.cb{background:var(--s1);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+.cbh{background:var(--s2);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.cbl{display:flex;align-items:center;gap:10px;}
+.cln{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--orange);}
+.ctag{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--s3);color:var(--muted);}
+.ctag.pizza{background:#3d1a08;color:var(--orange);}
+.ctag.entrada{background:#2a2010;color:var(--amber);}
+.ctag.bar{background:#0d1f30;color:#60a5fa;}
+.ctg{color:var(--muted);transition:transform .2s;}
+.cb.op .ctg{transform:rotate(180deg);}
+.cbc{display:none;}.cb.op .cbc{display:block;}
+.ir{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);}
+.ir:hover{background:var(--s2);}
+.inp-n{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:14px;padding:3px 2px;outline:none;transition:border-color .15s;min-width:0;}
+.inp-n:focus{border-bottom-color:var(--orange);}
+.pw{display:flex;align-items:center;gap:3px;background:var(--s3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;transition:border-color .15s;flex-shrink:0;}
+.pw:focus-within{border-color:var(--orange);}
+.prs{font-size:11px;color:var(--muted);}
+.inp-p{background:transparent;border:none;color:var(--amber);font-family:'Syne',sans-serif;font-weight:700;font-size:14px;width:52px;text-align:right;outline:none;}
+.inp-p::-webkit-inner-spin-button,.inp-p::-webkit-outer-spin-button{-webkit-appearance:none;}
+.bsi{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;}
+.bsi:hover{border-color:var(--orange);color:var(--orange);}
+.bsi.ok{border-color:var(--green);color:var(--green);}
+.bd{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 4px;border-radius:4px;transition:color .15s;flex-shrink:0;}
+.bd:hover{color:var(--red);}
+.ar{display:flex;gap:8px;padding:10px 16px;background:var(--s2);border-top:1px solid var(--border);align-items:center;}
+.ar input[type=text]{flex:1;background:var(--s3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;min-width:0;}
+.ar input[type=text]:focus{border-color:var(--orange);}
+.ar input[type=number]{width:76px;background:var(--s3);border:1px solid var(--border);border-radius:6px;padding:7px 8px;color:var(--amber);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;outline:none;text-align:right;}
+.ar input[type=number]:focus{border-color:var(--orange);}
+.ar input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+.bad{background:var(--orange);border:none;color:#0f0d0b;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:7px 16px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--orange);padding:11px 18px;border-radius:8px;font-size:13px;color:var(--cream);opacity:0;transform:translateY(6px);transition:all .2s;z-index:200;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0);}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+@media(max-width:700px){
+  .charts-grid{grid-template-columns:1fr;}
+  .det-charts{grid-template-columns:1fr;}
+  .comp-grid{grid-template-columns:1fr;}
+  .hnav .nb{padding:6px 10px;font-size:12px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="tela-login">
+  <div class="lb">
+    <div class="lb-logo">🍕 Salsa Admin</div>
+    <div class="lb-sub">Acesso restrito ao proprietário</div>
+    <label>Senha</label>
+    <input type="password" id="inp-senha" placeholder="••••••••" maxlength="30"/>
+    <div class="err" id="login-err"></div>
+    <button class="btn-lg" id="btn-entrar">Entrar →</button>
+  </div>
+</div>
+
+<header id="hd" style="display:none">
+  <div class="logo">⚙ Salsa Admin</div>
+  <div class="hnav">
+    <button class="nb on" id="nb-dash">Dashboard</button>
+    <button class="nb" id="nb-cal">Calendário</button>
+    <button class="nb" id="nb-hist">Histórico</button>
+    <button class="nb" id="nb-cp">Cardápio</button>
+  </div>
+</header>
+
+<main id="main" style="display:none">
+
+  <!-- ══ DASHBOARD ══════════════════════════════════════════ -->
+  <div id="sec-dashboard" class="sec on">
+    <div class="dash-header">
+      <h2>Dashboard</h2>
+      <p>Análise de performance, vendas e percepções da equipe</p>
+    </div>
+
+    <div class="fp">
+      <span class="fp-t">Período:</span>
+      <button class="pb on" id="dp-7">7 dias</button>
+      <button class="pb" id="dp-30">30 dias</button>
+      <button class="pb" id="dp-90">3 meses</button>
+      <button class="pb" id="dp-365">1 ano</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <!-- Linha 1: Faturamento + Pizza vs Bar -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Faturamento por dia</div>
+        <div class="chart-sub">Receita total (R$) por sessão</div>
+        <div class="chart-wrap"><canvas id="ch-fat"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Vendas por categoria</div>
+        <div class="chart-sub">Distribuição de itens vendidos</div>
+        <div class="chart-wrap"><canvas id="ch-cat"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Linha 2: Top itens -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Top pizzas</div>
+        <div class="chart-sub">Mais pedidas no período</div>
+        <div id="top-pizza"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top bar</div>
+        <div class="chart-sub">Bebidas e drinks mais saídos</div>
+        <div id="top-bar"></div>
+      </div>
+    </div>
+
+    <!-- Linha 3: Ticket médio + Comandas por dia -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Ticket médio por dia</div>
+        <div class="chart-sub">Valor médio por comanda (R$)</div>
+        <div class="chart-wrap"><canvas id="ch-ticket"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Comandas por dia</div>
+        <div class="chart-sub">Quantidade de mesas/comandas abertas</div>
+        <div class="chart-wrap"><canvas id="ch-cmds"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Linha 4: Percepções da equipe -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Movimento real vs expectativa</div>
+        <div class="chart-sub">O que a equipe esperava vs como foi</div>
+        <div class="chart-wrap"><canvas id="ch-mov"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Insights da equipe</div>
+        <div class="chart-sub">Percepções coletadas no fechamento</div>
+        <div id="insights-wrap" style="margin-top:4px"></div>
+      </div>
+    </div>
+
+    <!-- Linha 5: Chuva vs Faturamento + Evento vs Normal -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Impacto da chuva</div>
+        <div class="chart-sub">Faturamento médio em dias com e sem chuva</div>
+        <div class="chart-wrap short" style="display:flex;align-items:center;justify-content:center;gap:24px" id="chuva-comp"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Evento vs dia normal</div>
+        <div class="chart-sub">Faturamento médio comparado</div>
+        <div class="chart-wrap short" style="display:flex;align-items:center;justify-content:center;gap:24px" id="evento-comp"></div>
+      </div>
+    </div>
+
+    <!-- Nota média -->
+    <div class="charts-grid full">
+      <div class="chart-card">
+        <div class="chart-title">Nota do dia pela equipe</div>
+        <div class="chart-sub">Evolução da satisfação da equipe ao longo do tempo</div>
+        <div class="chart-wrap"><canvas id="ch-nota"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CALENDÁRIO ═════════════════════════════════════════ -->
+  <div id="sec-calendario" class="sec">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px">
+      <div><h2 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">Calendário</h2>
+      <p style="font-size:13px;color:var(--muted);margin-top:2px">Clique num dia para ver o relatório completo</p></div>
+    </div>
+    <div class="cal-nav">
+      <button class="cnavb" id="btn-prev">‹</button>
+      <div class="cal-mes" id="cal-label"></div>
+      <button class="cnavb" id="btn-next">›</button>
+    </div>
+    <div class="cgrid" id="cgrid"></div>
+    <div class="det" id="det"></div>
+  </div>
+
+  <!-- ══ HISTÓRICO ══════════════════════════════════════════ -->
+  <div id="sec-historico" class="sec">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div><h2 style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">Histórico</h2>
+      <p style="font-size:13px;color:var(--muted);margin-top:2px">Todas as comandas registradas</p></div>
+    </div>
+    <div class="fp" style="margin-bottom:16px">
+      <span class="fp-t">Período:</span>
+      <button class="pb on" id="ph-hoje">Hoje</button>
+      <button class="pb" id="ph-semana">7 dias</button>
+      <button class="pb" id="ph-mes">30 dias</button>
+      <button class="pb" id="ph-tudo">Tudo</button>
+    </div>
+    <div class="tw">
+      <table class="ht">
+        <thead><tr>
+          <th>Cliente</th><th>Garçom</th><th>Sessão</th><th>Hora</th><th>Itens</th><th>Status</th><th>Total</th>
+        </tr></thead>
+        <tbody id="hbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ CARDÁPIO ═══════════════════════════════════════════ -->
+  <div id="sec-cardapio" class="sec">
+    <div class="ch-row">
+      <div><h2>Cardápio</h2><p style="font-size:13px;color:var(--muted);margin-top:2px">Alterações refletem no app das garçonetes.</p></div>
+      <div class="btns-row">
+        <button class="bac" id="btn-add-cat">+ Nova categoria</button>
+        <button class="bst" id="btn-salvar-tudo">💾 Salvar tudo</button>
+      </div>
+    </div>
+    <div id="cp-admin"></div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc,
+         collection, query, where, orderBy, getDocs, serverTimestamp, Timestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FB={
+  apiKey:"AIzaSyCk2hE6PcIuKXyfC4xKk6aZK2jPkzKIyHc",
+  authDomain:"salsa-pizza-bar.firebaseapp.com",
+  projectId:"salsa-pizza-bar",
+  storageBucket:"salsa-pizza-bar.firebasestorage.app",
+  messagingSenderId:"790853305030",
+  appId:"1:790853305030:web:dd4d61bbabfaf17aac0dc7"
+};
+const db=getFirestore(initializeApp(FB));
+const SENHA='salsa123';
+
+/* ══ CONFIG CHART.JS ══════════════════════════════════════ */
+Chart.defaults.color='#7a6e65';
+Chart.defaults.borderColor='#2a2420';
+Chart.defaults.font.family="'DM Sans', sans-serif";
+Chart.defaults.font.size=11;
+
+const chartInstances={};
+function criarOuAtualizar(id, tipo, data, opts={}){
+  if(chartInstances[id]) chartInstances[id].destroy();
+  const ctx=document.getElementById(id);
+  if(!ctx) return;
+  chartInstances[id]=new Chart(ctx,{type:tipo,data,options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:opts.legend||false,labels:{color:'#7a6e65',boxWidth:10,font:{size:11}}},
+             tooltip:{backgroundColor:'#231f1b',borderColor:'#2a2420',borderWidth:1,titleColor:'#f0e8db',bodyColor:'#7a6e65',padding:10}},
+    scales: opts.noScales?{}:{
+      x:{grid:{color:'#1e1a17'},ticks:{color:'#7a6e65',maxRotation:0,font:{size:10}}},
+      y:{grid:{color:'#1e1a17'},ticks:{color:'#7a6e65',font:{size:10}},beginAtZero:true,...(opts.yOpts||{})}
+    },
+    ...opts.extra
+  }});
+}
+
+/* ══ LOGIN ════════════════════════════════════════════════ */
+document.getElementById('btn-entrar').addEventListener('click',login);
+document.getElementById('inp-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+function login(){
+  if(document.getElementById('inp-senha').value===SENHA){
+    document.getElementById('tela-login').style.display='none';
+    document.getElementById('hd').style.display='';
+    document.getElementById('main').style.display='';
+    initNav();
+    carregarDashboard();
+  } else {
+    document.getElementById('login-err').textContent='Senha incorreta';
+    document.getElementById('inp-senha').value='';
+    document.getElementById('inp-senha').focus();
+  }
+}
+
+/* ══ NAVEGAÇÃO ════════════════════════════════════════════ */
+function initNav(){
+  const navMap={
+    'nb-dash':'dashboard','nb-cal':'calendario',
+    'nb-hist':'historico','nb-cp':'cardapio'
+  };
+  Object.entries(navMap).forEach(([btnId,secId])=>{
+    document.getElementById(btnId).addEventListener('click',()=>{
+      document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+      document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+      document.getElementById('sec-'+secId).classList.add('on');
+      document.getElementById(btnId).classList.add('on');
+      if(secId==='calendario') carregarCalendario();
+      if(secId==='historico')  carregarHistorico();
+      if(secId==='cardapio')   carregarCardapio();
+    });
+  });
+
+  // Filtros dashboard
+  let dpAtual=7;
+  [['dp-7',7],['dp-30',30],['dp-90',90],['dp-365',365]].forEach(([id,dias])=>{
+    document.getElementById(id).addEventListener('click',()=>{
+      document.querySelectorAll('.fp .pb').forEach(b=>b.classList.remove('on'));
+      document.getElementById(id).classList.add('on');
+      dpAtual=dias;
+      carregarDashboard(dias);
+    });
+  });
+
+  // Filtros histórico
+  let phAtual='hoje';
+  [['ph-hoje','hoje'],['ph-semana','semana'],['ph-mes','mes'],['ph-tudo','tudo']].forEach(([id,p])=>{
+    document.getElementById(id).addEventListener('click',()=>{
+      document.querySelectorAll('#sec-historico .fp .pb').forEach(b=>b.classList.remove('on'));
+      document.getElementById(id).classList.add('on');
+      phAtual=p; carregarHistorico(p);
+    });
+  });
+}
+
+/* ══ DASHBOARD ════════════════════════════════════════════ */
+async function carregarDashboard(dias=7){
+  const hoje=new Date(); hoje.setHours(23,59,59,999);
+  const ini=new Date(); ini.setDate(ini.getDate()-(dias-1)); ini.setHours(0,0,0,0);
+
+  // Buscar sessões do período
+  const iniStr=ini.toISOString().slice(0,10);
+  const fimStr=hoje.toISOString().slice(0,10);
+  let sessoes=[];
+  try{
+    const s=await getDocs(query(collection(db,'sessoes'),
+      where('data','>=',iniStr),where('data','<=',fimStr)));
+    sessoes=s.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.error(e);}
+
+  // Buscar comandas do período
+  let comandas=[];
+  try{
+    const s=await getDocs(query(collection(db,'comandas'),
+      where('criadaEm','>=',Timestamp.fromDate(ini)),
+      where('criadaEm','<=',Timestamp.fromDate(hoje))));
+    comandas=s.docs.map(d=>d.data());
+  }catch(e){console.error(e);}
+
+  renderDashboard(sessoes, comandas, dias);
+}
+
+function renderDashboard(sessoes, comandas, dias){
+  const fechadas=sessoes.filter(s=>s.status==='fechado');
+  const totalFat=fechadas.reduce((a,s)=>a+(s.totalFaturado||0),0);
+  const totalCmds=comandas.length;
+  const ticket=totalCmds>0?(totalFat/Math.max(fechadas.length,1)):0;
+  const totalItens=comandas.reduce((a,c)=>a+c.itens.reduce((b,i)=>b+i.qty,0),0);
+  const notaMedia=fechadas.filter(s=>s.fechamento?.nota).reduce((a,s,_,arr)=>a+s.fechamento.nota/arr.length,0);
+
+  // KPIs
+  document.getElementById('kpi-grid').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Faturamento total</div>
+      <div class="kpi-val o">R$ ${totalFat.toFixed(0)}</div>
+      <div class="kpi-sub">${dias} dias</div></div>
+    <div class="kpi green"><div class="kpi-label">Dias operados</div>
+      <div class="kpi-val g">${fechadas.length}</div>
+      <div class="kpi-sub">de ${sessoes.length} abertos</div></div>
+    <div class="kpi amber"><div class="kpi-label">Ticket médio/dia</div>
+      <div class="kpi-val a">R$ ${(totalFat/Math.max(fechadas.length,1)).toFixed(0)}</div>
+      <div class="kpi-sub">por sessão</div></div>
+    <div class="kpi"><div class="kpi-label">Comandas</div>
+      <div class="kpi-val">${totalCmds}</div>
+      <div class="kpi-sub">${(totalCmds/Math.max(fechadas.length,1)).toFixed(1)} por dia</div></div>
+    <div class="kpi blue"><div class="kpi-label">Itens vendidos</div>
+      <div class="kpi-val b">${totalItens}</div>
+      <div class="kpi-sub">no período</div></div>
+    <div class="kpi amber"><div class="kpi-label">Nota média equipe</div>
+      <div class="kpi-val a">${notaMedia>0?notaMedia.toFixed(1):'—'}</div>
+      <div class="kpi-sub">de 5 ⭐</div></div>
+  `;
+
+  // Dados por dia
+  const diasLabels=[];
+  const fatPorDia=[];
+  const cmdsPorDia=[];
+  const ticketPorDia=[];
+
+  for(let i=dias-1;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10);
+    const label=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    diasLabels.push(label);
+    const sess=sessoes.find(s=>s.data===key);
+    const fat=sess?.totalFaturado||0;
+    const cmdsNoDia=comandas.filter(c=>c.sessaoId===key).length;
+    fatPorDia.push(fat);
+    cmdsPorDia.push(cmdsNoDia);
+    ticketPorDia.push(cmdsNoDia>0?fat/cmdsNoDia:0);
+  }
+
+  // Gráfico faturamento por dia
+  criarOuAtualizar('ch-fat','bar',{
+    labels:diasLabels,
+    datasets:[{label:'Faturamento',data:fatPorDia,
+      backgroundColor:'rgba(255,108,26,0.7)',borderColor:'#ff6c1a',borderWidth:1,borderRadius:4}]
+  },{yOpts:{ticks:{callback:v=>`R$${v}`}}});
+
+  // Categorias (donut)
+  const catTotais={pizza:0,entrada:0,bar:0};
+  for(const c of comandas) for(const it of c.itens) catTotais[it.categoria]=(catTotais[it.categoria]||0)+it.qty;
+  criarOuAtualizar('ch-cat','doughnut',{
+    labels:['Pizzas','Entradas','Bar'],
+    datasets:[{data:[catTotais.pizza||0,catTotais.entrada||0,catTotais.bar||0],
+      backgroundColor:['#ff6c1a','#ffb800','#4da6ff'],borderColor:'#1a1714',borderWidth:2}]
+  },{noScales:true,legend:true,extra:{plugins:{legend:{position:'bottom'}},cutout:'65%'}});
+
+  // Ticket médio por dia
+  criarOuAtualizar('ch-ticket','line',{
+    labels:diasLabels,
+    datasets:[{label:'Ticket médio',data:ticketPorDia,
+      borderColor:'#ffb800',backgroundColor:'rgba(255,184,0,0.1)',
+      tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#ffb800'}]
+  },{yOpts:{ticks:{callback:v=>`R$${v.toFixed(0)}`}}});
+
+  // Comandas por dia
+  criarOuAtualizar('ch-cmds','bar',{
+    labels:diasLabels,
+    datasets:[{label:'Comandas',data:cmdsPorDia,
+      backgroundColor:'rgba(77,166,255,0.7)',borderColor:'#4da6ff',borderWidth:1,borderRadius:4}]
+  });
+
+  // Top pizzas
+  const rankPizza={};
+  for(const c of comandas) for(const it of c.itens){
+    if(it.categoria!=='pizza') continue;
+    rankPizza[it.nome]=(rankPizza[it.nome]||0)+it.qty;
+  }
+  const topPizza=Object.entries(rankPizza).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxP=topPizza[0]?.[1]||1;
+  document.getElementById('top-pizza').innerHTML=`<div class="top-lista">${topPizza.map(([nome,qty],i)=>`
+    <div class="top-item">
+      <span class="top-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${i+1}</span>
+      <span class="top-nome">${nome}</span>
+      <div class="top-bar-wrap"><div class="top-bar" style="width:${Math.round(qty/maxP*100)}%;background:#ff6c1a"></div></div>
+      <span class="top-qty">${qty}×</span>
+    </div>`).join('')||'<div style="color:var(--muted);font-size:13px;padding:12px 0">Sem dados no período</div>'}</div>`;
+
+  // Top bar
+  const rankBar={};
+  for(const c of comandas) for(const it of c.itens){
+    if(it.categoria!=='bar') continue;
+    rankBar[it.nome]=(rankBar[it.nome]||0)+it.qty;
+  }
+  const topBar=Object.entries(rankBar).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxB=topBar[0]?.[1]||1;
+  document.getElementById('top-bar').innerHTML=`<div class="top-lista">${topBar.map(([nome,qty],i)=>`
+    <div class="top-item">
+      <span class="top-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${i+1}</span>
+      <span class="top-nome">${nome}</span>
+      <div class="top-bar-wrap"><div class="top-bar" style="width:${Math.round(qty/maxB*100)}%;background:#4da6ff"></div></div>
+      <span class="top-qty">${qty}×</span>
+    </div>`).join('')||'<div style="color:var(--muted);font-size:13px;padding:12px 0">Sem dados no período</div>'}</div>`;
+
+  // Movimento real vs expectativa (radar/grouped bar)
+  const movLabels=['tranquilo','normal','agitado','lotado'];
+  const expCount=movLabels.map(m=>fechadas.filter(s=>s.expectativa===m).length);
+  const movCount=movLabels.map(m=>fechadas.filter(s=>s.fechamento?.movimento===m).length);
+  criarOuAtualizar('ch-mov','bar',{
+    labels:['Tranquilo','Normal','Agitado','Lotado'],
+    datasets:[
+      {label:'Expectativa',data:expCount,backgroundColor:'rgba(255,184,0,0.6)',borderColor:'#ffb800',borderWidth:1,borderRadius:3},
+      {label:'Realidade',data:movCount,backgroundColor:'rgba(34,197,94,0.6)',borderColor:'#22c55e',borderWidth:1,borderRadius:3}
+    ]
+  },{legend:true,extra:{plugins:{legend:{position:'top'}}}});
+
+  // Insights da equipe
+  const total=fechadas.length||1;
+  const chuvaS=fechadas.filter(s=>s.fechamento?.chuva==='sim').length;
+  const chuvaC=fechadas.filter(s=>s.fechamento?.chuva==='comecou').length;
+  const chuvaN=fechadas.filter(s=>s.fechamento?.chuva==='nao').length;
+  const consBeb=fechadas.filter(s=>s.fechamento?.consumo==='bebida').length;
+  const consCom=fechadas.filter(s=>s.fechamento?.consumo==='comida').length;
+  const consIg=fechadas.filter(s=>s.fechamento?.consumo==='igual').length;
+  const chopeV=fechadas.filter(s=>s.fechamento?.chope==='muito').length;
+  const chopeS=fechadas.filter(s=>s.fechamento?.chope==='sim').length;
+  const chopeN=fechadas.filter(s=>s.fechamento?.chope==='nao').length;
+
+  document.getElementById('insights-wrap').innerHTML=`
+    <div class="insight-bar-wrap">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Chuva durante o turno</div>
+      ${[['☀ Sem chuva',chuvaN],['🌧 Com chuva',chuvaS],['⛅ Começou',chuvaC]].map(([l,n])=>`
+        <div class="insight-row">
+          <span class="insight-label">${l}</span>
+          <div class="insight-track"><div class="insight-fill" style="width:${Math.round(n/total*100)}%;background:var(--blue)"></div></div>
+          <span class="insight-count">${n}</span>
+        </div>`).join('')}
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:12px 0 8px">Consumo predominante</div>
+      ${[['🍺 Bebida',consBeb],['🍕 Comida',consCom],['⚖ Igual',consIg]].map(([l,n])=>`
+        <div class="insight-row">
+          <span class="insight-label">${l}</span>
+          <div class="insight-track"><div class="insight-fill" style="width:${Math.round(n/total*100)}%;background:var(--orange)"></div></div>
+          <span class="insight-count">${n}</span>
+        </div>`).join('')}
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:12px 0 8px">Saída do chope</div>
+      ${[['🔥 Voou',chopeV],['👍 Boa',chopeS],['Fraca',chopeN]].map(([l,n])=>`
+        <div class="insight-row">
+          <span class="insight-label">${l}</span>
+          <div class="insight-track"><div class="insight-fill" style="width:${Math.round(n/total*100)}%;background:var(--amber)"></div></div>
+          <span class="insight-count">${n}</span>
+        </div>`).join('')}
+    </div>
+  `;
+
+  // Impacto da chuva
+  const diasComChuva=fechadas.filter(s=>['sim','comecou'].includes(s.fechamento?.chuva||s.chuvaAbertura));
+  const diasSemChuva=fechadas.filter(s=>!['sim','comecou'].includes(s.fechamento?.chuva||s.chuvaAbertura));
+  const mediaChuva=diasComChuva.length?diasComChuva.reduce((a,s)=>a+(s.totalFaturado||0),0)/diasComChuva.length:0;
+  const mediaSemChuva=diasSemChuva.length?diasSemChuva.reduce((a,s)=>a+(s.totalFaturado||0),0)/diasSemChuva.length:0;
+  document.getElementById('chuva-comp').innerHTML=`
+    <div class="comp-card" style="text-align:center">
+      <div class="comp-tit">☀ Sem chuva</div>
+      <div class="comp-val" style="color:var(--green)">R$ ${mediaSemChuva.toFixed(0)}</div>
+      <div class="comp-sub">${diasSemChuva.length} dias</div>
+    </div>
+    <div class="comp-card" style="text-align:center">
+      <div class="comp-tit">🌧 Com chuva</div>
+      <div class="comp-val" style="color:var(--blue)">R$ ${mediaChuva.toFixed(0)}</div>
+      <div class="comp-sub">${diasComChuva.length} dias</div>
+    </div>
+  `;
+
+  // Evento vs normal
+  const diasEvento=fechadas.filter(s=>s.evento);
+  const diasNormal=fechadas.filter(s=>!s.evento);
+  const mediaEvento=diasEvento.length?diasEvento.reduce((a,s)=>a+(s.totalFaturado||0),0)/diasEvento.length:0;
+  const mediaNormal=diasNormal.length?diasNormal.reduce((a,s)=>a+(s.totalFaturado||0),0)/diasNormal.length:0;
+  document.getElementById('evento-comp').innerHTML=`
+    <div class="comp-card" style="text-align:center">
+      <div class="comp-tit">📅 Dia normal</div>
+      <div class="comp-val" style="color:var(--cream)">R$ ${mediaNormal.toFixed(0)}</div>
+      <div class="comp-sub">${diasNormal.length} dias</div>
+    </div>
+    <div class="comp-card" style="text-align:center">
+      <div class="comp-tit">🎉 Com evento</div>
+      <div class="comp-val" style="color:var(--orange)">R$ ${mediaEvento.toFixed(0)}</div>
+      <div class="comp-sub">${diasEvento.length} dias</div>
+    </div>
+  `;
+
+  // Nota da equipe ao longo do tempo
+  const notaPorDia=diasLabels.map((_,i)=>{
+    const d=new Date(); d.setDate(d.getDate()-(dias-1-i));
+    const key=d.toISOString().slice(0,10);
+    const sess=fechadas.find(s=>s.data===key);
+    return sess?.fechamento?.nota||null;
+  });
+  criarOuAtualizar('ch-nota','line',{
+    labels:diasLabels,
+    datasets:[{label:'Nota',data:notaPorDia,
+      borderColor:'#ff2b4a',backgroundColor:'rgba(255,43,74,0.1)',
+      tension:0.4,fill:true,pointRadius:4,pointBackgroundColor:'#ff2b4a',
+      spanGaps:true}]
+  },{yOpts:{min:0,max:5,ticks:{stepSize:1}}});
+}
+
+/* ══ CALENDÁRIO ═══════════════════════════════════════════ */
+let ano,mes,sessoes={};
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function initCalendario(){
+  const hj=new Date(); ano=hj.getFullYear(); mes=hj.getMonth();
+  document.getElementById('btn-prev').addEventListener('click',()=>navMes(-1));
+  document.getElementById('btn-next').addEventListener('click',()=>navMes(1));
+}
+
+function navMes(d){
+  mes+=d; if(mes<0){mes=11;ano--;} if(mes>11){mes=0;ano++;}
+  document.getElementById('det').classList.remove('vis');
+  carregarCalendario();
+}
+
+async function carregarCalendario(){
+  if(!ano){initCalendario();}
+  document.getElementById('cal-label').textContent=`${MESES[mes]} ${ano}`;
+  renderCal({});
+  const ini=`${ano}-${String(mes+1).padStart(2,'0')}-01`;
+  const fim=`${ano}-${String(mes+1).padStart(2,'0')}-31`;
+  try{
+    const snap=await getDocs(query(collection(db,'sessoes'),where('data','>=',ini),where('data','<=',fim)));
+    sessoes={}; snap.docs.forEach(d=>{sessoes[d.id]=d.data();});
+  }catch(e){console.error(e);}
+  renderCal(sessoes);
+}
+
+function renderCal(s){
+  const hj=new Date().toISOString().slice(0,10);
+  const total=new Date(ano,mes+1,0).getDate();
+  const primeiro=new Date(ano,mes,1).getDay();
+  const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let html=dias.map(d=>`<div class="cdow">${d}</div>`).join('');
+  for(let i=0;i<primeiro;i++) html+=`<div class="cd vz"></div>`;
+  for(let d=1;d<=total;d++){
+    const key=`${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const s2=s[key];
+    let cls='cd'; let dot='';
+    if(s2){
+      cls+=' clicavel';
+      dot=`<div class="cddot ${s2.status}"></div>`;
+    } else cls+=' sd';
+    if(key===hj) cls+=' hj';
+    const fat=s2?.totalFaturado?`<span class="cd-fat">R$${s2.totalFaturado.toFixed(0)}</span>`:'';
+    html+=`<div class="${cls}" data-key="${key}"><span class="cdnum">${d}</span>${dot}${fat}</div>`;
+  }
+  document.getElementById('cgrid').innerHTML=html;
+  document.querySelectorAll('.cd.clicavel').forEach(el=>{
+    el.addEventListener('click',()=>{
+      document.querySelectorAll('.cd').forEach(x=>x.classList.remove('sel'));
+      el.classList.add('sel');
+      verDia(el.dataset.key);
+    });
+  });
+}
+
+async function verDia(data){
+  const s=sessoes[data]; if(!s) return;
+  let cmds=[];
+  try{
+    const snap=await getDocs(query(collection(db,'comandas'),where('sessaoId','==',data)));
+    cmds=snap.docs.map(d=>d.data());
+  }catch(e){}
+
+  const total=cmds.filter(c=>c.status==='paga').reduce((a,c)=>a+(c.total||0),0);
+  const n=cmds.length, npago=cmds.filter(c=>c.status==='paga').length;
+  const ticket=npago?total/npago:0;
+  const itens=cmds.reduce((a,c)=>a+c.itens.reduce((b,i)=>b+i.qty,0),0);
+
+  const rank={};
+  for(const c of cmds) for(const it of(c.itens||[])){
+    if(!rank[it.nome]) rank[it.nome]={nome:it.nome,cat:it.categoria,qty:0,rec:0};
+    rank[it.nome].qty+=it.qty; rank[it.nome].rec+=it.qty*it.preco;
+  }
+  const todos=Object.values(rank).sort((a,b)=>b.qty-a.qty);
+  const topP=todos.filter(i=>i.cat==='pizza').slice(0,5);
+  const topB=todos.filter(i=>i.cat==='bar').slice(0,5);
+
+  const [y,m,d]=data.split('-');
+  const fech=s.fechamento||{};
+
+  const det=document.getElementById('det');
+  det.innerHTML=`
+    <div class="det-tit">
+      📅 ${d}/${m}/${y}
+      <span class="badge ${s.status==='fechado'?'b-ok':'b-ev'}">${s.status}</span>
+      ${s.evento?`<span class="badge b-ev">🎉 ${s.eventoNome||'Evento'}</span>`:''}
+    </div>
+
+    <div class="det-sec">Faturamento</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
+      <div style="background:var(--s2);border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">TOTAL</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--orange)">R$ ${total.toFixed(0)}</div>
+      </div>
+      <div style="background:var(--s2);border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">COMANDAS</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800">${n}</div>
+      </div>
+      <div style="background:var(--s2);border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">TICKET MÉDIO</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--amber)">R$ ${ticket.toFixed(0)}</div>
+      </div>
+      <div style="background:var(--s2);border-radius:8px;padding:12px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">ITENS</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--green)">${itens}</div>
+      </div>
+    </div>
+
+    <div class="det-sec">Gráficos do dia</div>
+    <div class="det-charts">
+      <div class="det-chart-card">
+        <div class="det-chart-tit">Itens por categoria</div>
+        <div class="det-chart-wrap"><canvas id="det-ch-cat"></canvas></div>
+      </div>
+      <div class="det-chart-card">
+        <div class="det-chart-tit">Top itens</div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px">
+          ${todos.slice(0,5).map((it,i)=>`
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="font-family:'Syne',sans-serif;font-weight:800;width:16px;color:${i===0?'var(--amber)':i===1?'var(--muted)':'var(--border)'}">${i+1}</span>
+              <span style="flex:1">${it.nome}</span>
+              <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--amber)">${it.qty}×</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="det-sec">Contexto do dia</div>
+    <div class="perc-grid">
+      <div class="perc"><div class="perc-l">Equipe</div><div class="perc-v">${(s.equipe||[]).join(', ')||'—'}</div></div>
+      <div class="perc"><div class="perc-l">Mesas</div><div class="perc-v">${s.mesas||'—'}</div></div>
+      <div class="perc"><div class="perc-l">Expectativa</div><div class="perc-v">${s.expectativa||'—'}</div></div>
+      <div class="perc"><div class="perc-l">Chuva abertura</div><div class="perc-v">${s.chuvaAbertura==='sim'?'🌧 Sim':'☀ Não'}</div></div>
+    </div>
+
+    ${s.status==='fechado'?`
+    <div class="det-sec">Percepções do fechamento</div>
+    <div class="perc-grid">
+      <div class="perc"><div class="perc-l">Movimento</div><div class="perc-v">${fech.movimento||'—'}</div></div>
+      <div class="perc"><div class="perc-l">Chuva no turno</div><div class="perc-v">${fech.chuva==='sim'?'🌧 Sim':fech.chuva==='comecou'?'⛅ Começou':'☀ Não'}</div></div>
+      <div class="perc"><div class="perc-l">Consumo</div><div class="perc-v">${fech.consumo==='bebida'?'🍺 Bebida':fech.consumo==='comida'?'🍕 Comida':'⚖ Igual'}</div></div>
+      <div class="perc"><div class="perc-l">Chope</div><div class="perc-v">${fech.chope==='muito'?'🔥 Voou':fech.chope==='sim'?'👍 Sim':'Fraco'}</div></div>
+      <div class="perc"><div class="perc-l">Nota</div><div class="perc-v">${'⭐'.repeat(fech.nota||0)} ${fech.nota||'—'}/5</div></div>
+    </div>
+    <div class="det-sec">Expectativa vs realidade</div>
+    <div style="background:var(--s2);border-radius:8px;padding:12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div><span style="font-size:10px;color:var(--muted)">Esperava</span><br><span class="badge b-neu" style="margin-top:4px;display:inline-block">${s.expectativa||'—'}</span></div>
+      <div style="color:var(--muted);font-size:18px">→</div>
+      <div><span style="font-size:10px;color:var(--muted)">Como foi</span><br><span class="badge b-ok" style="margin-top:4px;display:inline-block">${fech.movimento||'—'}</span></div>
+      ${fech.obs?`<div style="flex:1;font-size:12px;color:var(--muted);font-style:italic">"${fech.obs}"</div>`:''}
+    </div>`:''}
+  `;
+  det.classList.add('vis');
+  det.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  // Gráfico de categorias do dia
+  const catD={pizza:0,entrada:0,bar:0};
+  for(const c of cmds) for(const it of c.itens) catD[it.categoria]=(catD[it.categoria]||0)+it.qty;
+  setTimeout(()=>{
+    criarOuAtualizar('det-ch-cat','doughnut',{
+      labels:['Pizzas','Entradas','Bar'],
+      datasets:[{data:[catD.pizza,catD.entrada,catD.bar],
+        backgroundColor:['#ff6c1a','#ffb800','#4da6ff'],borderColor:'#231f1b',borderWidth:2}]
+    },{noScales:true,legend:true,extra:{cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+  },100);
+}
+
+/* ══ HISTÓRICO ════════════════════════════════════════════ */
+async function carregarHistorico(p='hoje'){
+  const body=document.getElementById('hbody');
+  body.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Carregando...</td></tr>`;
+  const hj=new Date(); hj.setHours(0,0,0,0);
+  const fim=new Date(); fim.setHours(23,59,59,999);
+  let ini=new Date(hj);
+  if(p==='semana') ini.setDate(ini.getDate()-6);
+  else if(p==='mes') ini.setDate(ini.getDate()-29);
+  else if(p==='tudo') ini=new Date(0);
+  try{
+    const snap=p==='tudo'
+      ?await getDocs(collection(db,'comandas'))
+      :await getDocs(query(collection(db,'comandas'),
+          where('criadaEm','>=',Timestamp.fromDate(ini)),
+          where('criadaEm','<=',Timestamp.fromDate(fim))));
+    const cmds=snap.docs.map(d=>d.data());
+    cmds.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0));
+    if(!cmds.length){
+      body.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Nenhuma comanda no período</td></tr>`;
+      return;
+    }
+    body.innerHTML=cmds.map(c=>{
+      const res=c.itens.slice(0,3).map(i=>`${i.qty}× ${i.nome}`).join(', ')+(c.itens.length>3?` +${c.itens.length-3}`:'');
+      const dt=c.criadaEm?.toDate?c.criadaEm.toDate().toLocaleDateString('pt-BR'):(c.sessaoId||'—');
+      return `<tr>
+        <td style="font-weight:500">${c.cliente}${c.descricao?`<br><span style="font-size:11px;color:var(--amber);font-style:italic">${c.descricao}</span>`:''}</td>
+        <td style="color:var(--muted)">${c.garcom}</td>
+        <td style="color:var(--muted);white-space:nowrap">${dt}</td>
+        <td style="color:var(--muted)">${c.hora}</td>
+        <td><div style="font-size:12px">${c.itens.length} itens</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${res}</div></td>
+        <td><span class="pill ${c.status==='paga'?'pfe':'pab'}">${c.status}</span></td>
+        <td style="font-family:'Syne',sans-serif;font-weight:700;color:var(--amber)">R$ ${c.total}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--red);padding:20px">Erro: ${e.message}</td></tr>`;
+  }
+}
+
+/* ══ CARDÁPIO ═════════════════════════════════════════════ */
+const CPP=[
+  {categoria:'Pizzas',tipo:'pizza',ordem:0,itens:[
+    {nome:'Calabresa',preco:56},{nome:'Marguerita',preco:56},{nome:'Diavola',preco:60},
+    {nome:'Porco Abelha e Azul',preco:66},{nome:'Cebola y Cilantro',preco:70},
+    {nome:'Courgette et Beurre',preco:60},{nome:'Marinara',preco:54},
+    {nome:'Carbonara',preco:68},{nome:'Quelmys',preco:70}
+  ]},
+  {categoria:'Entradas',tipo:'entrada',ordem:1,itens:[{nome:'Bolinho de Arroz do Salsa',preco:18},{nome:'Fatia',preco:16}]},
+  {categoria:'Chope & Cerveja',tipo:'bar',ordem:2,itens:[
+    {nome:'Orange Sunshine 300ml',preco:14},{nome:'Orange Sunshine 400ml',preco:18},
+    {nome:'Mana Pilsen 300ml',preco:12},{nome:'Mana Pilsen 400ml',preco:16}
+  ]},
+  {categoria:'Bebidas',tipo:'bar',ordem:3,itens:[{nome:'Água sem Gás',preco:3},{nome:'Água com Gás',preco:4},{nome:'Refri Lata',preco:7}]},
+  {categoria:'Coquetéis',tipo:'bar',ordem:4,itens:[
+    {nome:'Don Corazón',preco:18},{nome:'Cajuzinho',preco:18},{nome:'Mojito Cubano',preco:16},
+    {nome:'Mate do Salsa',preco:16},{nome:'Pasion Tropical',preco:18}
+  ]},
+  {categoria:'Merch',tipo:'bar',ordem:5,itens:[{nome:'Boné Salsa',preco:65},{nome:'Copo Hocus Pocus',preco:35}]}
+];
+let cp=[];
+
+async function carregarCardapio(){
+  try{
+    const snap=await getDocs(query(collection(db,'cardapio'),orderBy('ordem')));
+    cp=snap.empty?JSON.parse(JSON.stringify(CPP)):snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){cp=JSON.parse(JSON.stringify(CPP));}
+  renderCP();
+}
+
+function renderCP(){
+  document.getElementById('cp-admin').innerHTML=cp.map((cat,ci)=>`
+    <div class="cb op" id="cb${ci}">
+      <div class="cbh" onclick="document.getElementById('cb${ci}').classList.toggle('op')">
+        <div class="cbl"><span class="cln">${cat.categoria}</span><span class="ctag ${cat.tipo}">${cat.tipo}</span></div>
+        <span class="ctg">▾</span>
+      </div>
+      <div class="cbc">
+        ${cat.itens.map((it,ii)=>`
+          <div class="ir">
+            <input class="inp-n" type="text" value="${esc(it.nome)}" onchange="cp[${ci}].itens[${ii}].nome=this.value"/>
+            <div class="pw"><span class="prs">R$</span>
+              <input class="inp-p" type="number" step="0.5" min="0" value="${it.preco}" onchange="cp[${ci}].itens[${ii}].preco=parseFloat(this.value)||0"/></div>
+            <button class="bsi" id="sb${ci}-${ii}" onclick="salvarItem(${ci},${ii})">Salvar</button>
+            <button class="bd" onclick="delItem(${ci},${ii})">×</button>
+          </div>`).join('')}
+        <div class="ar">
+          <input type="text" placeholder="Nome do novo item" id="an${ci}"/>
+          <input type="number" placeholder="R$" id="ap${ci}" step="0.5" min="0"/>
+          <button class="bad" onclick="addItem(${ci})">+ Adicionar</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function persistir(ci){
+  const cat=cp[ci], cid=cat.id||`cat_${ci}`;
+  if(!cat.id) cat.id=cid;
+  await setDoc(doc(db,'cardapio',cid),{...cat});
+}
+window.cp=null;
+window.salvarItem=async function(ci,ii){
+  try{
+    await persistir(ci);
+    const b=document.getElementById(`sb${ci}-${ii}`);
+    b.textContent='Salvo ✓';b.classList.add('ok');toast('Item salvo');
+    setTimeout(()=>{b.textContent='Salvar';b.classList.remove('ok');},2500);
+  }catch(e){toast('Erro: '+e.message);}
+}
+window.delItem=async function(ci,ii){
+  const nome=cp[ci].itens[ii].nome;
+  if(!confirm(`Remover "${nome}"?`)) return;
+  cp[ci].itens.splice(ii,1);
+  await persistir(ci);renderCP();toast(`"${nome}" removido`);
+}
+window.addItem=async function(ci){
+  const ne=document.getElementById('an'+ci),pe=document.getElementById('ap'+ci);
+  const nome=ne.value.trim(),preco=parseFloat(pe.value)||0;
+  if(!nome){toast('Digite o nome');return;}
+  cp[ci].itens.push({nome,preco});await persistir(ci);renderCP();toast(`"${nome}" adicionado`);
+}
+document.getElementById('btn-add-cat').addEventListener('click',async()=>{
+  const nome=prompt('Nome da nova categoria:');if(!nome)return;
+  const tipo=prompt('Tipo (pizza, entrada ou bar):','bar')||'bar';
+  const cid=`cat_${Date.now()}`;
+  const nova={id:cid,categoria:nome.trim(),tipo:tipo.trim(),ordem:cp.length,itens:[]};
+  cp.push(nova);await setDoc(doc(db,'cardapio',cid),nova);renderCP();toast(`"${nome}" criada`);
+});
+document.getElementById('btn-salvar-tudo').addEventListener('click',async()=>{
+  try{for(let i=0;i<cp.length;i++) await persistir(i);toast('Cardápio salvo!');}
+  catch(e){toast('Erro: '+e.message);}
+});
+
+function esc(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+let tT;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('show'),2800);
+}
+Object.defineProperty(window,'cp',{get:()=>cp,set:v=>{cp=v;}});
+</script>
+</body>
+</html>

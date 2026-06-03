@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Salsa Pizza Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0d0b;--s1:#1a1714;--s2:#231f1b;--s3:#2d2824;--s4:#38322c;
+  --orange:#ff6c1a;--red:#ff2b4a;--amber:#ffb800;--cream:#f0e8db;
+  --muted:#7a6e65;--border:#2a2420;--green:#22c55e;
+  --fire:linear-gradient(135deg,#ff2b4a,#ff6c1a 55%,#ffb800);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;}
+
+/* ── TELAS ─────────────────────────────────── */
+.tela{position:fixed;inset:0;overflow-y:auto;display:none;flex-direction:column;}
+.tela.ativa{display:flex;}
+
+/* LOADING */
+#tela-loading{align-items:center;justify-content:center;}
+.loading-logo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;background:var(--fire);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:24px;}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* FORMULÁRIOS GENÉRICOS */
+.wrap{padding:28px 20px 60px;max-width:480px;margin:0 auto;width:100%;}
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.fg label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
+.fg input,.fg select,.fg textarea{
+  background:var(--s1);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;color:var(--cream);font-family:'DM Sans',sans-serif;
+  font-size:15px;outline:none;transition:border-color .2s;width:100%;
+}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--orange);}
+.fg input::placeholder,.fg textarea::placeholder{color:var(--muted);}
+.fg select option{background:var(--s2);}
+.fg textarea{resize:none;min-height:68px;font-size:14px;}
+.tg{display:flex;gap:8px;}
+.tgb{flex:1;padding:10px;background:var(--s1);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;}
+.tgb.on{background:#2a1500;border-color:var(--orange);color:var(--orange);}
+.tgb.on2{background:#0a2a14;border-color:var(--green);color:var(--green);}
+.div-line{height:1px;background:var(--border);margin:18px 0;position:relative;}
+.div-line span{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--bg);padding:0 10px;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);}
+.btn-p{width:100%;padding:14px;background:var(--fire);border:none;border-radius:12px;color:#0f0d0b;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s;margin-top:6px;}
+.btn-p:active{opacity:.85;transform:scale(.98);}
+.btn-p:disabled{opacity:.3;cursor:not-allowed;}
+.btn-sec{width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;margin-top:8px;transition:all .15s;}
+.btn-sec:hover{border-color:var(--orange);color:var(--orange);}
+
+/* ABERTURA */
+#tela-abertura{background:var(--bg);}
+.ab-topo{text-align:center;margin-bottom:26px;}
+.ab-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:var(--muted);margin-bottom:8px;}
+.ab-titulo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;background:var(--fire);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;margin-bottom:6px;}
+.ab-sub{font-size:13px;color:var(--muted);line-height:1.5;}
+.ev-extra{display:none;margin-top:8px;}
+.ev-extra.vis{display:block;}
+
+/* ENTRAR */
+#tela-entrar{background:var(--bg);align-items:center;justify-content:center;padding:24px;}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:26px 22px;width:100%;max-width:400px;}
+.card-titulo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px;}
+.card-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
+.dia-info-box{background:var(--s2);border-radius:10px;padding:12px;margin-bottom:18px;display:flex;flex-direction:column;gap:6px;}
+.di-row{display:flex;justify-content:space-between;font-size:13px;}
+.di-row span:first-child{color:var(--muted);}
+.di-ev{background:#2a1500;border-radius:6px;padding:4px 10px;font-size:12px;color:var(--orange);font-weight:600;text-align:center;margin-top:2px;}
+
+/* APP */
+#tela-app{background:var(--bg);}
+.app-hd{background:var(--s1);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.app-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;background:var(--fire);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hdr{display:flex;align-items:center;gap:7px;}
+.av{width:26px;height:26px;background:var(--s3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--orange);}
+.hn{font-size:12px;color:var(--muted);}
+.btn-fc{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.btn-fc:hover{border-color:var(--red);color:var(--red);}
+
+/* ABAS — 3 agora */
+.abas{display:flex;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;}
+.aba{flex:1;padding:10px 6px;background:transparent;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.aba.on{color:var(--orange);border-bottom-color:var(--orange);}
+.bdg{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;background:var(--orange);color:#0f0d0b;border-radius:8px;font-size:9px;font-weight:700;margin-left:4px;padding:0 3px;}
+
+.stela{display:none;flex:1;overflow-y:auto;flex-direction:column;}
+.stela.on{display:flex;}
+
+/* ── NOVA COMANDA ───────────────────────── */
+.nw{padding:16px;display:flex;flex-direction:column;gap:8px;padding-bottom:130px;}
+.sl{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:2px 0 4px;}
+.cn{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--orange);margin:6px 0 4px;padding-left:2px;}
+.ic{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;user-select:none;margin-bottom:3px;}
+.ic.sel{border-color:var(--orange);background:#2a1a0a;}
+.ii{flex:1;min-width:0;}
+.in{font-size:14px;font-weight:500;line-height:1.2;}
+.ip{font-size:12px;color:var(--muted);margin-top:1px;}
+.ict{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.bq{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--s2);color:var(--cream);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;line-height:1;}
+.bq:active{transform:scale(.88);}
+.bq.m{border-color:var(--orange);color:var(--orange);}
+.qn{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;min-width:18px;text-align:center;}
+.or{display:none;padding:3px 12px 8px;background:var(--s1);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-top:-4px;margin-bottom:3px;}
+.or.vis{display:flex;align-items:center;gap:6px;}
+.or label{font-size:10px;color:var(--muted);white-space:nowrap;}
+.or input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--amber);font-family:'DM Sans',sans-serif;font-size:12px;font-style:italic;padding:3px 0;outline:none;}
+.or input::placeholder{color:var(--s4);}
+
+.bar-env{position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--border);padding:12px 16px;z-index:80;}
+.res{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:9px;}
+.res strong{font-family:'Syne',sans-serif;font-size:18px;color:var(--amber);}
+.btn-env{width:100%;padding:14px;background:var(--fire);border:none;border-radius:10px;color:#0f0d0b;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s;}
+.btn-env:disabled{opacity:.3;cursor:not-allowed;}
+.btn-env:not(:disabled):active{transform:scale(.98);}
+
+/* ── COMANDAS ABERTAS ───────────────────── */
+.cw{padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+.cc{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .15s;}
+.cc.open{border-color:var(--orange);}
+
+/* Cabeçalho da comanda */
+.cc-head{padding:12px 14px;background:var(--s2);display:flex;align-items:flex-start;gap:10px;}
+.cc-info{flex:1;min-width:0;cursor:pointer;}
+.cc-cliente{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cc-desc{font-size:11px;color:var(--amber);margin-top:2px;font-style:italic;line-height:1.3;}
+.cc-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.cc-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;}
+.cc-total{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--amber);}
+.btn-pago{background:#0a2a14;border:1px solid var(--green);color:var(--green);font-family:'Syne',sans-serif;font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.btn-pago:hover{background:#0d3a1a;}
+.btn-expandir{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.btn-expandir:hover{border-color:var(--orange);color:var(--orange);}
+
+/* Body expandido da comanda */
+.cc-body{display:none;padding:0 14px 12px;}
+.cc.open .cc-body{display:block;}
+
+.cc-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.cc-item:last-of-type{border-bottom:none;}
+.ci-qty{font-weight:700;color:var(--orange);min-width:24px;}
+.ci-nome{flex:1;}
+.ci-obs{font-size:11px;color:var(--amber);font-style:italic;display:block;margin-top:1px;}
+.ci-cat{font-size:10px;padding:1px 5px;border-radius:4px;background:var(--s3);color:var(--muted);flex-shrink:0;}
+.ci-cat.pizza{background:#3d1a08;color:var(--orange);}
+.ci-cat.entrada{background:#2a2010;color:var(--amber);}
+.btn-del-item{background:transparent;border:none;color:var(--muted);font-size:16px;padding:2px 4px;cursor:pointer;transition:color .15s;flex-shrink:0;}
+.btn-del-item:hover{color:var(--red);}
+
+/* Botão de adicionar itens dentro da comanda */
+.cc-add-btn{width:100%;padding:9px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;margin-top:10px;transition:all .15s;text-align:center;}
+.cc-add-btn:hover{border-color:var(--orange);color:var(--orange);}
+
+.vz{text-align:center;padding:48px 24px;color:var(--muted);font-size:14px;line-height:1.6;}
+
+/* ── HISTÓRICO (garçonete — sem valor) ──── */
+.hw{padding:16px;display:flex;flex-direction:column;gap:8px;}
+.hc{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.hc-head{padding:10px 14px;background:var(--s2);display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.hc-nome{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.hc-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.hc-body{display:none;padding:8px 14px 10px;display:flex;flex-direction:column;gap:3px;}
+.hc.open .hc-body{display:flex;}
+.hc-item{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.hc-item:last-child{border-bottom:none;}
+.hc-qty{font-weight:700;color:var(--orange);min-width:22px;}
+.hc-obs{font-size:11px;color:var(--amber);font-style:italic;margin-top:1px;}
+
+/* FECHAMENTO */
+#tela-fechamento{background:var(--bg);}
+.rd{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;}
+.rdr{display:flex;justify-content:space-between;align-items:center;font-size:13px;}
+.rdl{color:var(--muted);}
+.rdv{font-family:'Syne',sans-serif;font-weight:700;color:var(--amber);}
+.nota-wrap{display:flex;gap:8px;justify-content:center;}
+.nbt{width:48px;height:48px;background:var(--s1);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'Syne',sans-serif;font-size:18px;font-weight:700;cursor:pointer;transition:all .15s;}
+.nbt.on{background:#2a1500;border-color:var(--orange);color:var(--orange);}
+
+/* FECHADO */
+#tela-fechado{background:var(--bg);align-items:center;justify-content:center;padding:32px 20px;}
+.fi{text-align:center;max-width:320px;}
+.fi-icon{font-size:48px;margin-bottom:18px;}
+.fi-t{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:8px;}
+.fi-s{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px;}
+
+/* MODAL GENÉRICO (confirmar pago / adicionar itens) */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:none;align-items:flex-end;justify-content:center;}
+#modal.show{display:flex;}
+.mb{background:var(--s1);border-radius:16px 16px 0 0;padding:22px 20px 36px;width:100%;max-width:500px;border-top:1px solid var(--border);max-height:90vh;overflow-y:auto;}
+.mt{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:4px;}
+.ms{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;}
+.ml{background:var(--s2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;}
+.mli{display:flex;gap:8px;}
+.mlq{color:var(--orange);font-weight:700;flex-shrink:0;}
+.mbtns{display:flex;gap:10px;}
+.bmc{flex:1;padding:13px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;}
+.bmo{flex:2;padding:13px;background:var(--fire);border:none;border-radius:8px;color:#0f0d0b;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+.bmo-green{flex:2;padding:13px;background:#0d3320;border:1px solid var(--green);border-radius:8px;color:var(--green);font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+
+/* Cardápio dentro do modal de adicionar */
+.modal-cp{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.mc-cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--orange);margin:8px 0 3px;padding-left:2px;}
+.mc-ic{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;user-select:none;}
+.mc-ic.sel{border-color:var(--orange);background:#2a1a0a;}
+.mc-info{flex:1;min-width:0;}
+.mc-nome{font-size:13px;font-weight:500;}
+.mc-preco{font-size:11px;color:var(--muted);margin-top:1px;}
+.mc-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.mc-bq{width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:var(--s3);color:var(--cream);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;}
+.mc-bq.m{border-color:var(--orange);color:var(--orange);}
+.mc-qn{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;min-width:16px;text-align:center;}
+
+/* TOAST */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--orange);padding:10px 18px;border-radius:8px;font-size:13px;color:var(--cream);white-space:nowrap;opacity:0;transition:all .2s;z-index:400;pointer-events:none;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="tela ativa" id="tela-loading">
+  <div class="loading-logo">🍕 Salsa</div>
+  <div class="spinner"></div>
+</div>
+
+<!-- ABERTURA -->
+<div class="tela" id="tela-abertura">
+  <div class="wrap">
+    <div class="ab-topo">
+      <div class="ab-tag">Salsa Pizza Bar</div>
+      <div class="ab-titulo">Abrindo o caixa</div>
+      <div class="ab-sub">Preencha as informações do dia</div>
+    </div>
+    <div class="fg"><label>Seu nome</label>
+      <input type="text" id="ab-nome" placeholder="Ex: Ana Lima" autocomplete="off" maxlength="40"/></div>
+    <div class="fg"><label>Data de hoje</label>
+      <input type="date" id="ab-data"/></div>
+    <div class="fg"><label>Mesas disponíveis</label>
+      <input type="number" id="ab-mesas" placeholder="Ex: 12" min="1" max="99"/></div>
+    <div class="div-line"><span>contexto do dia</span></div>
+    <div class="fg"><label>Está chovendo?</label>
+      <div class="tg">
+        <button class="tgb" id="chuva-nao" onclick="tog('chuva','nao')">☀ Não</button>
+        <button class="tgb" id="chuva-sim" onclick="tog('chuva','sim')">🌧 Sim</button>
+      </div></div>
+    <div class="fg"><label>É dia de evento?</label>
+      <div class="tg">
+        <button class="tgb" id="evento-nao" onclick="tog('evento','nao')">Não</button>
+        <button class="tgb" id="evento-sim" onclick="tog('evento','sim')">🎉 Sim</button>
+      </div>
+      <div class="ev-extra" id="ev-extra">
+        <input type="text" id="ev-nome" placeholder="Qual evento?" style="margin-top:8px"/></div></div>
+    <div class="fg"><label>Expectativa pro dia</label>
+      <select id="ab-exp">
+        <option value="">Selecione...</option>
+        <option value="tranquilo">😴 Tranquilo</option>
+        <option value="normal">😊 Normal</option>
+        <option value="agitado">🔥 Agitado</option>
+        <option value="lotado">🚀 Lotado</option>
+      </select></div>
+    <div class="fg"><label>Observações (opcional)</label>
+      <textarea id="ab-obs" placeholder="Informações importantes..."></textarea></div>
+    <button class="btn-p" id="btn-abrir" onclick="abrirCaixa()">Abrir caixa →</button>
+  </div>
+</div>
+
+<!-- ENTRAR EM SESSÃO EXISTENTE -->
+<div class="tela" id="tela-entrar">
+  <div class="card" style="margin:auto">
+    <div class="card-titulo">Bem-vinda! 👋</div>
+    <div class="card-sub">O caixa já está aberto. Informe seu nome para entrar.</div>
+    <div class="dia-info-box" id="dia-info-box"></div>
+    <div class="fg"><label>Seu nome</label>
+      <input type="text" id="en-nome" placeholder="Ex: Bruna Costa" autocomplete="off" maxlength="40"/></div>
+    <button class="btn-p" onclick="entrarSessao()">Entrar →</button>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div class="tela" id="tela-app">
+  <div class="app-hd">
+    <div class="app-logo">🍕 Salsa</div>
+    <div class="hdr">
+      <div class="av" id="app-av"></div>
+      <span class="hn" id="app-nm"></span>
+      <button class="btn-fc" onclick="irFechamento()">Fechar caixa</button>
+    </div>
+  </div>
+  <div class="abas">
+    <button class="aba on" id="aba-nova" onclick="trocarAba('nova',this)">Nova comanda</button>
+    <button class="aba" id="aba-cmd" onclick="trocarAba('cmd',this)">
+      Abertas <span class="bdg" id="bdg" style="display:none"></span>
+    </button>
+    <button class="aba" id="aba-hist" onclick="trocarAba('hist',this)">Histórico</button>
+  </div>
+
+  <!-- NOVA COMANDA -->
+  <div class="stela on" id="st-nova">
+    <div class="nw">
+      <div class="fg"><label>Cliente / mesa</label>
+        <input type="text" id="inp-cli" placeholder="Ex: João, Mesa 4..." autocomplete="off" maxlength="50"/></div>
+      <div class="fg"><label>Descrição (ajuda a identificar)</label>
+        <input type="text" id="inp-desc" placeholder="Ex: camisa vermelha, perto da janela..." autocomplete="off" maxlength="80"/></div>
+      <div class="sl">Cardápio</div>
+      <div id="cp-render"></div>
+    </div>
+    <div class="bar-env">
+      <div class="res"><span id="res-it">Nenhum item</span><strong id="res-tot">R$ 0</strong></div>
+      <button class="btn-env" id="btn-env" disabled onclick="abrirModalComanda()">Abrir comanda</button>
+    </div>
+  </div>
+
+  <!-- COMANDAS ABERTAS -->
+  <div class="stela" id="st-cmd">
+    <div class="cw" id="lista-cmd">
+      <div class="vz">Nenhuma comanda aberta.<br>Crie uma na aba ao lado!</div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO (sem valores) -->
+  <div class="stela" id="st-hist">
+    <div class="hw" id="lista-hist">
+      <div class="vz">Nenhuma comanda paga ainda hoje.</div>
+    </div>
+  </div>
+</div>
+
+<!-- FECHAMENTO -->
+<div class="tela" id="tela-fechamento">
+  <div class="wrap">
+    <div class="ab-topo" style="margin-bottom:18px">
+      <div class="ab-tag">Encerrando o dia</div>
+      <div class="ab-titulo">Fechamento</div>
+      <div class="ab-sub">Conta como foi o dia antes de fechar</div>
+    </div>
+    <div class="rd" id="rd-resumo"></div>
+    <div class="fg"><label>Como foi o movimento?</label>
+      <select id="fech-mov">
+        <option value="">Selecione...</option>
+        <option value="tranquilo">😴 Tranquilo</option>
+        <option value="normal">😊 Normal</option>
+        <option value="agitado">🔥 Agitado</option>
+        <option value="lotado">🚀 Lotado</option>
+      </select></div>
+    <div class="fg"><label>Choveu durante o turno?</label>
+      <div class="tg">
+        <button class="tgb" id="fc-nao" onclick="togF('fc','nao')">☀ Não</button>
+        <button class="tgb" id="fc-sim" onclick="togF('fc','sim')">🌧 Sim</button>
+        <button class="tgb" id="fc-comecou" onclick="togF('fc','comecou')">⛅ Começou</button>
+      </div></div>
+    <div class="fg"><label>Consumiram mais o quê?</label>
+      <div class="tg">
+        <button class="tgb" id="fcon-bebida" onclick="togF('fcon','bebida')">🍺 Bebida</button>
+        <button class="tgb" id="fcon-comida" onclick="togF('fcon','comida')">🍕 Comida</button>
+        <button class="tgb" id="fcon-igual" onclick="togF('fcon','igual')">⚖ Igual</button>
+      </div></div>
+    <div class="fg"><label>Chope teve boa saída?</label>
+      <div class="tg">
+        <button class="tgb" id="fch-nao" onclick="togF('fch','nao')">Não</button>
+        <button class="tgb" id="fch-sim" onclick="togF('fch','sim')">👍 Sim</button>
+        <button class="tgb" id="fch-muito" onclick="togF('fch','muito')">🔥 Voou</button>
+      </div></div>
+    <div class="fg"><label>Nota geral do dia</label>
+      <div class="nota-wrap">
+        <button class="nbt" onclick="setNota(1)">1</button>
+        <button class="nbt" onclick="setNota(2)">2</button>
+        <button class="nbt" onclick="setNota(3)">3</button>
+        <button class="nbt" onclick="setNota(4)">4</button>
+        <button class="nbt" onclick="setNota(5)">5</button>
+      </div></div>
+    <div class="fg"><label>Observações</label>
+      <textarea id="fech-obs" placeholder="Problemas, falta de produto, situação especial..."></textarea></div>
+    <button class="btn-p" onclick="fecharCaixa()">Fechar o caixa</button>
+    <button class="btn-sec" onclick="mostrar('app')">Voltar</button>
+  </div>
+</div>
+
+<!-- FECHADO -->
+<div class="tela" id="tela-fechado">
+  <div class="fi" style="margin:auto">
+    <div class="fi-icon">🔒</div>
+    <div class="fi-t">Caixa fechado</div>
+    <div class="fi-s" id="fi-msg">O caixa foi encerrado. Até amanhã!</div>
+    <button class="btn-sec" style="max-width:200px;margin:0 auto" onclick="verificarDia()">Abrir novo caixa</button>
+  </div>
+</div>
+
+<!-- MODAL MULTIPLO (confirmar nova comanda / adicionar itens / confirmar pago) -->
+<div id="modal" onclick="if(event.target===this)fecharModal()">
+  <div class="mb" id="modal-box">
+    <!-- conteúdo injetado via JS -->
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+         collection, query, where, orderBy, onSnapshot,
+         getDocs, serverTimestamp, arrayUnion, arrayRemove }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FB={
+  apiKey:"AIzaSyCk2hE6PcIuKXyfC4xKk6aZK2jPkzKIyHc",
+  authDomain:"salsa-pizza-bar.firebaseapp.com",
+  projectId:"salsa-pizza-bar",
+  storageBucket:"salsa-pizza-bar.firebasestorage.app",
+  messagingSenderId:"790853305030",
+  appId:"1:790853305030:web:dd4d61bbabfaf17aac0dc7"
+};
+const db=getFirestore(initializeApp(FB));
+
+/* ══ ESTADO ═══════════════════════════════════ */
+let nome='', sid='', sdoc=null, unsub=null;
+let sel={}, _cp=null, nota=0;
+const togs={}, togsF={};
+
+/* ══ CARDÁPIO FALLBACK ════════════════════════ */
+const CPF=[
+  {categoria:'Pizzas',tipo:'pizza',ordem:0,itens:[
+    {nome:'Calabresa',preco:56},{nome:'Marguerita',preco:56},{nome:'Diavola',preco:60},
+    {nome:'Porco Abelha e Azul',preco:66},{nome:'Cebola y Cilantro',preco:70},
+    {nome:'Courgette et Beurre',preco:60},{nome:'Marinara',preco:54},
+    {nome:'Carbonara',preco:68},{nome:'Quelmys',preco:70}
+  ]},
+  {categoria:'Entradas',tipo:'entrada',ordem:1,itens:[
+    {nome:'Bolinho de Arroz do Salsa',preco:18},{nome:'Fatia',preco:16}
+  ]},
+  {categoria:'Chope & Cerveja',tipo:'bar',ordem:2,itens:[
+    {nome:'Orange Sunshine 300ml',preco:14},{nome:'Orange Sunshine 400ml',preco:18},
+    {nome:'Mana Pilsen 300ml',preco:12},{nome:'Mana Pilsen 400ml',preco:16}
+  ]},
+  {categoria:'Bebidas',tipo:'bar',ordem:3,itens:[
+    {nome:'Água sem Gás',preco:3},{nome:'Água com Gás',preco:4},{nome:'Refri Lata',preco:7}
+  ]},
+  {categoria:'Coquetéis',tipo:'bar',ordem:4,itens:[
+    {nome:'Don Corazón',preco:18},{nome:'Cajuzinho',preco:18},{nome:'Mojito Cubano',preco:16},
+    {nome:'Mate do Salsa',preco:16},{nome:'Pasion Tropical',preco:18}
+  ]},
+  {categoria:'Merch',tipo:'bar',ordem:5,itens:[
+    {nome:'Boné Salsa',preco:65},{nome:'Copo Hocus Pocus',preco:35}
+  ]}
+];
+
+async function getCP(){
+  try{
+    const s=await getDocs(query(collection(db,'cardapio'),orderBy('ordem')));
+    if(!s.empty) return s.docs.map(d=>d.data());
+  }catch(e){}
+  return CPF;
+}
+
+/* ══ INIT ══════════════════════════════════════ */
+async function verificarDia(){
+  mostrar('loading');
+  const hoje=dHoje();
+  try{
+    const snap=await getDoc(doc(db,'sessoes',hoje));
+    if(snap.exists()){
+      sdoc=snap.data(); sid=hoje;
+      if(sdoc.status==='fechado'){
+        document.getElementById('fi-msg').textContent=
+          `Caixa encerrado por ${sdoc.fechadoPor||'equipe'}. Até amanhã!`;
+        mostrar('fechado');
+      } else {
+        renderDiaInfo(sdoc);
+        mostrar('entrar');
+      }
+    } else {
+      document.getElementById('ab-data').value=hoje;
+      mostrar('abertura');
+    }
+  }catch(e){
+    console.error('verificarDia:',e);
+    document.getElementById('ab-data').value=dHoje();
+    mostrar('abertura');
+  }
+}
+window.verificarDia=verificarDia;
+verificarDia();
+
+/* ══ TOGGLES ══════════════════════════════════ */
+window.tog=function(g,v){
+  togs[g]=v;
+  document.querySelectorAll(`[id^="${g}-"]`).forEach(b=>b.classList.remove('on','on2'));
+  document.getElementById(`${g}-${v}`).classList.add(v==='sim'?'on':'on2');
+  if(g==='evento') document.getElementById('ev-extra').classList.toggle('vis',v==='sim');
+}
+window.togF=function(g,v){
+  togsF[g]=v;
+  document.querySelectorAll(`[id^="${g}-"]`).forEach(b=>b.classList.remove('on','on2'));
+  document.getElementById(`${g}-${v}`).classList.add('on');
+}
+window.setNota=function(n){
+  nota=n;
+  document.querySelectorAll('.nbt').forEach((b,i)=>b.classList.toggle('on',i<n));
+}
+
+/* ══ ABERTURA ══════════════════════════════════ */
+window.abrirCaixa=async function(){
+  const n=document.getElementById('ab-nome').value.trim();
+  const d=document.getElementById('ab-data').value;
+  const ms=parseInt(document.getElementById('ab-mesas').value)||0;
+  const ex=document.getElementById('ab-exp').value;
+  if(!n){toast('Informe seu nome');return;}
+  if(!d){toast('Informe a data');return;}
+  if(!ex){toast('Selecione a expectativa');return;}
+  const sessao={
+    data:d,abertoPor:n,abertoEm:serverTimestamp(),mesas:ms,
+    chuvaAbertura:togs['chuva']||'nao',evento:togs['evento']==='sim',
+    eventoNome:togs['evento']==='sim'?(document.getElementById('ev-nome').value.trim()):'',
+    expectativa:ex,obsAbertura:document.getElementById('ab-obs').value.trim(),
+    status:'aberto',equipe:[n]
+  };
+  try{
+    document.getElementById('btn-abrir').disabled=true;
+    await setDoc(doc(db,'sessoes',d),sessao);
+    sid=d; sdoc=sessao; nome=n;
+    sessStore(n,d);
+    await iniciarApp();
+  }catch(e){
+    console.error('abrirCaixa:',e);
+    toast('Erro ao abrir caixa: '+e.message);
+    document.getElementById('btn-abrir').disabled=false;
+  }
+}
+
+/* ══ ENTRAR ════════════════════════════════════ */
+function renderDiaInfo(s){
+  document.getElementById('dia-info-box').innerHTML=`
+    <div class="di-row"><span>Aberto por</span><span>${s.abertoPor}</span></div>
+    <div class="di-row"><span>Mesas</span><span>${s.mesas||'—'}</span></div>
+    <div class="di-row"><span>Expectativa</span><span>${s.expectativa||'—'}</span></div>
+    ${s.evento?`<div class="di-ev">🎉 ${s.eventoNome||'Evento hoje'}</div>`:''}
+  `;
+}
+window.entrarSessao=async function(){
+  const n=document.getElementById('en-nome').value.trim();
+  if(!n){toast('Informe seu nome');return;}
+  nome=n; sessStore(n,sid);
+  try{
+    const eq=sdoc.equipe||[];
+    if(!eq.includes(n)){eq.push(n);await updateDoc(doc(db,'sessoes',sid),{equipe:eq});}
+  }catch(e){}
+  await iniciarApp();
+}
+
+/* ══ APP ═══════════════════════════════════════ */
+async function iniciarApp(){
+  document.getElementById('app-nm').textContent=nome.split(' ')[0];
+  document.getElementById('app-av').textContent=nome[0].toUpperCase();
+  mostrar('app');
+  _cp=await getCP();
+  renderCP();
+  escutar();
+}
+
+/* ══ CARDÁPIO RENDER (nova comanda) ═══════════ */
+function renderCP(){
+  if(!_cp) return;
+  document.getElementById('cp-render').innerHTML=_cp.map((cat,ci)=>
+    `<div class="cn">${cat.categoria}</div>`+
+    cat.itens.map((it,ii)=>{
+      const k=`${ci}_${ii}`,s=sel[k],q=s?s.qty:0;
+      return `
+        <div class="ic${q>0?' sel':''}" id="ic${k}">
+          <div class="ii" onclick="addI('${ci}','${ii}')">
+            <div class="in">${it.nome}</div>
+            <div class="ip">R$ ${it.preco}</div>
+          </div>
+          <div class="ict">
+            ${q>0?`<button class="bq" onclick="chgI('${ci}','${ii}',-1)">−</button>
+                   <span class="qn">${q}</span>`:''}
+            <button class="bq m" onclick="addI('${ci}','${ii}')">+</button>
+          </div>
+        </div>
+        ${q>0?`<div class="or vis"><label>obs:</label>
+          <input type="text" placeholder="sem cebola..."
+            value="${(s&&s.obs)||''}"
+            onchange="setObs('${ci}','${ii}',this.value)" maxlength="80"/></div>`:''}
+      `;
+    }).join('')
+  ).join('');
+  atuRes();
+}
+
+window.addI=function(ci,ii){
+  const k=`${ci}_${ii}`;if(!sel[k])sel[k]={qty:0,obs:''};
+  sel[k].qty++;renderCP();
+}
+window.chgI=function(ci,ii,d){
+  const k=`${ci}_${ii}`;if(!sel[k])return;
+  sel[k].qty=Math.max(0,sel[k].qty+d);
+  if(sel[k].qty===0)delete sel[k];renderCP();
+}
+window.setObs=function(ci,ii,v){
+  const k=`${ci}_${ii}`;if(sel[k])sel[k].obs=v;
+}
+
+function atuRes(){
+  if(!_cp)return;
+  let q=0,t=0;
+  for(const [k,s] of Object.entries(sel)){
+    const [ci,ii]=k.split('_').map(Number);
+    q+=s.qty;t+=s.qty*(_cp[ci]?.itens[ii]?.preco||0);
+  }
+  document.getElementById('res-it').textContent=q===0?'Nenhum item':`${q} ${q===1?'item':'itens'}`;
+  document.getElementById('res-tot').textContent=`R$ ${t}`;
+  document.getElementById('btn-env').disabled=q===0;
+}
+
+function montarItens(cpRef){
+  const c=cpRef||_cp||CPF;
+  return Object.entries(sel).map(([k,s])=>{
+    const [ci,ii]=k.split('_').map(Number);
+    const cat=c[ci],it=cat.itens[ii];
+    return {nome:it.nome,qty:s.qty,obs:s.obs||'',preco:it.preco,categoria:cat.tipo};
+  });
+}
+
+/* ══ MODAL NOVA COMANDA ════════════════════════ */
+window.abrirModalComanda=function(){
+  const cli=document.getElementById('inp-cli').value.trim();
+  if(!cli){toast('Informe o cliente ou mesa');document.getElementById('inp-cli').focus();return;}
+  const itens=montarItens();
+  const box=document.getElementById('modal-box');
+  box.innerHTML=`
+    <div class="mt">Abrir comanda?</div>
+    <div class="ms">${cli} — ${itens.length} ${itens.length===1?'item':'itens'}</div>
+    <div class="ml">
+      ${itens.map(it=>`<div class="mli"><span class="mlq">${it.qty}×</span>
+       <span>${it.nome}${it.obs?` — <em style="color:var(--amber);font-size:11px">${it.obs}</em>`:''}</span></div>`).join('')}
+    </div>
+    <div class="mbtns">
+      <button class="bmc" onclick="fecharModal()">Cancelar</button>
+      <button class="bmo" onclick="confirmarComanda()">Abrir comanda</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('show');
+}
+
+window.confirmarComanda=async function(){
+  fecharModal();
+  const cli=document.getElementById('inp-cli').value.trim();
+  const desc=document.getElementById('inp-desc').value.trim();
+  const itens=montarItens();
+  const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const total=itens.reduce((a,i)=>a+i.qty*i.preco,0);
+  try{
+    await addDoc(collection(db,'comandas'),{
+      sessaoId:sid,cliente:cli,descricao:desc,garcom:nome,hora,
+      itens,total,status:'aberta',criadaEm:serverTimestamp()
+    });
+    sel={};
+    document.getElementById('inp-cli').value='';
+    document.getElementById('inp-desc').value='';
+    renderCP();
+    toast(`Comanda de ${cli} aberta!`);
+    // Ir pra aba de comandas abertas
+    trocarAba('cmd', document.getElementById('aba-cmd'));
+  }catch(e){
+    console.error('confirmarComanda:',e);
+    toast('Erro: '+e.message);
+  }
+}
+
+/* ══ ESCUTAR COMANDAS ══════════════════════════ */
+function escutar(){
+  if(unsub) unsub();
+  const q=query(collection(db,'comandas'),where('sessaoId','==',sid));
+  unsub=onSnapshot(q,snap=>{
+    const todas=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Ordenar client-side
+    todas.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0));
+    const abertas=todas.filter(c=>c.status==='aberta');
+    const pagas=todas.filter(c=>c.status==='paga');
+    renderAbertas(abertas);
+    renderHistorico(pagas);
+    const bdg=document.getElementById('bdg');
+    bdg.textContent=abertas.length;
+    bdg.style.display=abertas.length>0?'inline-flex':'none';
+  },err=>{console.error('onSnapshot:',err);toast('Erro ao carregar comandas');});
+}
+
+/* ══ RENDER COMANDAS ABERTAS ═══════════════════ */
+function renderAbertas(cmds){
+  const w=document.getElementById('lista-cmd');
+  if(!cmds.length){
+    w.innerHTML='<div class="vz">Nenhuma comanda aberta.<br>Crie uma na aba ao lado!</div>';
+    return;
+  }
+  w.innerHTML=cmds.map(c=>`
+    <div class="cc" id="cc${c.id}">
+      <div class="cc-head">
+        <div class="cc-info" onclick="toggleCmd('${c.id}')">
+          <div class="cc-cliente">${c.cliente}</div>
+          ${c.descricao?`<div class="cc-desc">📍 ${c.descricao}</div>`:''}
+          <div class="cc-meta">${c.garcom} · ${c.hora} · ${c.itens.length} itens</div>
+        </div>
+        <div class="cc-actions">
+          <span class="cc-total">R$ ${c.total}</span>
+          <button class="btn-pago" onclick="confirmarPago('${c.id}','${c.cliente.replace(/'/g,"\\'")}')">✓ Pago</button>
+          <button class="btn-expandir" onclick="toggleCmd('${c.id}')">Editar</button>
+        </div>
+      </div>
+      <div class="cc-body">
+        ${c.itens.map((it,idx)=>`
+          <div class="ci-item" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <span style="font-weight:700;color:var(--orange);min-width:24px">${it.qty}×</span>
+            <div style="flex:1">
+              <div>${it.nome}</div>
+              ${it.obs?`<div style="font-size:11px;color:var(--amber);font-style:italic;margin-top:1px">⚠ ${it.obs}</div>`:''}
+            </div>
+            <span style="font-size:10px;padding:1px 5px;border-radius:4px;background:var(--s3);color:var(--muted)">${it.categoria}</span>
+            <button class="btn-del-item" onclick="removerItem('${c.id}',${idx})" title="Remover">×</button>
+          </div>
+        `).join('')}
+        <button class="cc-add-btn" onclick="abrirModalAdicionar('${c.id}')">
+          + Adicionar itens
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.toggleCmd=function(id){
+  document.getElementById('cc'+id)?.classList.toggle('open');
+}
+
+/* ══ REMOVER ITEM DA COMANDA ═══════════════════ */
+window.removerItem=async function(cmdId, idx){
+  try{
+    const ref=doc(db,'comandas',cmdId);
+    const snap=await getDoc(ref);
+    if(!snap.exists()) return;
+    const data=snap.data();
+    const itens=[...data.itens];
+    itens.splice(idx,1);
+    const total=itens.reduce((a,i)=>a+i.qty*i.preco,0);
+    await updateDoc(ref,{itens,total});
+    toast('Item removido');
+  }catch(e){toast('Erro: '+e.message);}
+}
+
+/* ══ ADICIONAR ITENS A COMANDA EXISTENTE ═══════ */
+let _addTarget='';
+let _addSel={};
+
+window.abrirModalAdicionar=function(cmdId){
+  _addTarget=cmdId;
+  _addSel={};
+  if(!_cp){toast('Cardápio não carregado');return;}
+  renderModalAdicionar();
+  document.getElementById('modal').classList.add('show');
+}
+
+function renderModalAdicionar(){
+  const box=document.getElementById('modal-box');
+  const cpHtml=_cp.map((cat,ci)=>
+    `<div class="mc-cat">${cat.categoria}</div>`+
+    cat.itens.map((it,ii)=>{
+      const k=`${ci}_${ii}`,s=_addSel[k],q=s?s.qty:0;
+      return `
+        <div class="mc-ic${q>0?' sel':''}">
+          <div class="mc-info" onclick="addMA('${ci}','${ii}')">
+            <div class="mc-nome">${it.nome}</div>
+            <div class="mc-preco">R$ ${it.preco}</div>
+          </div>
+          <div class="mc-ctrl">
+            ${q>0?`<button class="mc-bq" onclick="chgMA('${ci}','${ii}',-1)">−</button>
+                   <span class="mc-qn">${q}</span>`:''}
+            <button class="mc-bq m" onclick="addMA('${ci}','${ii}')">+</button>
+          </div>
+        </div>
+      `;
+    }).join('')
+  ).join('');
+
+  const total=Object.entries(_addSel).reduce((a,[k,s])=>{
+    const [ci,ii]=k.split('_').map(Number);
+    return a+s.qty*(_cp[ci]?.itens[ii]?.preco||0);
+  },0);
+  const qty=Object.values(_addSel).reduce((a,s)=>a+s.qty,0);
+
+  box.innerHTML=`
+    <div class="mt">Adicionar itens</div>
+    <div class="ms">${qty>0?`${qty} itens selecionados — R$ ${total}`:'Selecione os itens a adicionar'}</div>
+    <div class="modal-cp">${cpHtml}</div>
+    <div class="mbtns">
+      <button class="bmc" onclick="fecharModal()">Cancelar</button>
+      <button class="bmo" onclick="confirmarAdicionar()" ${qty===0?'disabled style="opacity:.3"':''}>
+        Adicionar ${qty>0?`(${qty})`:''}
+      </button>
+    </div>
+  `;
+}
+
+window.addMA=function(ci,ii){
+  const k=`${ci}_${ii}`;if(!_addSel[k])_addSel[k]={qty:0,obs:''};
+  _addSel[k].qty++;renderModalAdicionar();
+}
+window.chgMA=function(ci,ii,d){
+  const k=`${ci}_${ii}`;if(!_addSel[k])return;
+  _addSel[k].qty=Math.max(0,_addSel[k].qty+d);
+  if(_addSel[k].qty===0)delete _addSel[k];renderModalAdicionar();
+}
+
+window.confirmarAdicionar=async function(){
+  if(!_addTarget||Object.keys(_addSel).length===0) return;
+  fecharModal();
+  try{
+    const ref=doc(db,'comandas',_addTarget);
+    const snap=await getDoc(ref);
+    if(!snap.exists()) return;
+    const data=snap.data();
+    const itensNovos=[];
+    for(const [k,s] of Object.entries(_addSel)){
+      const [ci,ii]=k.split('_').map(Number);
+      const cat=_cp[ci],it=cat.itens[ii];
+      itensNovos.push({nome:it.nome,qty:s.qty,obs:'',preco:it.preco,categoria:cat.tipo});
+    }
+    // Mesclar com itens existentes (mesmo item → somar qty)
+    const itens=[...data.itens];
+    for(const novo of itensNovos){
+      const ex=itens.find(i=>i.nome===novo.nome&&i.obs===novo.obs);
+      if(ex) ex.qty+=novo.qty;
+      else itens.push(novo);
+    }
+    const total=itens.reduce((a,i)=>a+i.qty*i.preco,0);
+    await updateDoc(ref,{itens,total});
+    toast('Itens adicionados!');
+    _addTarget=''; _addSel={};
+  }catch(e){toast('Erro: '+e.message);}
+}
+
+/* ══ MARCAR COMO PAGO ══════════════════════════ */
+window.confirmarPago=function(cmdId,cliente){
+  const box=document.getElementById('modal-box');
+  box.innerHTML=`
+    <div class="mt">Marcar como pago?</div>
+    <div class="ms">A comanda de <strong>${cliente}</strong> vai para o histórico e sai da tela de abertas.</div>
+    <div class="mbtns">
+      <button class="bmc" onclick="fecharModal()">Cancelar</button>
+      <button class="bmo-green" onclick="marcarPago('${cmdId}')">✓ Confirmar pagamento</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('show');
+}
+
+window.marcarPago=async function(cmdId){
+  fecharModal();
+  try{
+    await updateDoc(doc(db,'comandas',cmdId),{
+      status:'paga',
+      pagaEm:serverTimestamp(),
+      pagaPor:nome
+    });
+    toast('Comanda fechada! 💚');
+  }catch(e){toast('Erro: '+e.message);}
+}
+
+/* ══ HISTÓRICO (garçonete — sem valor total) ═══ */
+function renderHistorico(cmds){
+  const w=document.getElementById('lista-hist');
+  if(!cmds.length){
+    w.innerHTML='<div class="vz">Nenhuma comanda paga ainda hoje.</div>';
+    return;
+  }
+  w.innerHTML=cmds.map(c=>`
+    <div class="hc" id="hc${c.id}">
+      <div class="hc-head" onclick="document.getElementById('hc${c.id}').classList.toggle('open')">
+        <div>
+          <div class="hc-nome">${c.cliente}</div>
+          <div class="hc-meta">${c.garcom} · ${c.hora}${c.descricao?` · ${c.descricao}`:''}</div>
+        </div>
+        <span style="font-size:11px;color:var(--green);font-weight:600">✓ pago</span>
+      </div>
+      <div class="hc-body">
+        ${(c.itens||[]).map(it=>`
+          <div class="hc-item">
+            <span class="hc-qty">${it.qty}×</span>
+            <div><div>${it.nome}</div>
+              ${it.obs?`<div class="hc-obs">⚠ ${it.obs}</div>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ══ FECHAMENTO ════════════════════════════════ */
+window.irFechamento=function(){
+  const n=document.querySelectorAll('#lista-cmd .cc').length;
+  document.getElementById('rd-resumo').innerHTML=`
+    <div class="rdr"><span class="rdl">Comandas abertas ainda</span><span class="rdv">${n}</span></div>
+    <div class="rdr"><span class="rdl">Data</span><span style="font-weight:500">${fmtData(sid)}</span></div>
+    <div class="rdr"><span class="rdl">Aberto por</span><span style="font-weight:500">${sdoc?.abertoPor||'—'}</span></div>
+  `;
+  mostrar('fechamento');
+}
+
+window.fecharCaixa=async function(){
+  if(!togsF['fc']){toast('Como foi a chuva?');return;}
+  if(!togsF['fcon']){toast('Consumiram mais o quê?');return;}
+  if(!togsF['fch']){toast('E o chope?');return;}
+  if(!document.getElementById('fech-mov').value){toast('Como foi o movimento?');return;}
+  if(!nota){toast('Dê uma nota pro dia');return;}
+  try{
+    const snap=await getDocs(query(collection(db,'comandas'),where('sessaoId','==',sid)));
+    const cmds=snap.docs.map(d=>d.data());
+    const totalF=cmds.filter(c=>c.status==='paga').reduce((a,c)=>a+(c.total||0),0);
+    await updateDoc(doc(db,'sessoes',sid),{
+      status:'fechado',fechadoPor:nome,fechadoEm:serverTimestamp(),
+      totalFaturado:totalF,totalComandas:cmds.length,
+      fechamento:{
+        movimento:document.getElementById('fech-mov').value,
+        chuva:togsF['fc'],consumo:togsF['fcon'],chope:togsF['fch'],
+        nota,obs:document.getElementById('fech-obs').value.trim()
+      }
+    });
+    if(unsub) unsub();
+    document.getElementById('fi-msg').textContent=`Caixa fechado por ${nome}. Bom descanso!`;
+    mostrar('fechado');
+  }catch(e){
+    console.error('fecharCaixa:',e);
+    toast('Erro: '+e.message);
+  }
+}
+
+/* ══ HELPERS ═══════════════════════════════════ */
+function mostrar(id){
+  document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
+  document.getElementById('tela-'+id).classList.add('ativa');
+}
+window.mostrar=mostrar;
+
+window.trocarAba=function(id,btn){
+  document.querySelectorAll('.aba').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.stela').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('st-'+id).classList.add('on');
+}
+
+window.fecharModal=function(){document.getElementById('modal').classList.remove('show');}
+
+function dHoje(){return new Date().toISOString().slice(0,10);}
+function fmtData(d){if(!d)return'—';const[y,m,dia]=d.split('-');return`${dia}/${m}/${y}`;}
+function sessStore(n,s){sessionStorage.setItem('sn',n);sessionStorage.setItem('ss',s);}
+
+let tT;
+window.toast=function(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+/* ══ RESTAURAR SESSÃO ══════════════════════════ */
+const sn=sessionStorage.getItem('sn'),ss=sessionStorage.getItem('ss');
+if(sn&&ss){
+  nome=sn;sid=ss;
+  getDoc(doc(db,'sessoes',ss)).then(snap=>{
+    if(snap.exists()&&snap.data().status==='aberto'){
+      sdoc=snap.data();
+      iniciarApp();
+    } else {
+      sessionStorage.clear();
+      verificarDia();
+    }
+  }).catch(()=>verificarDia());
+}
+</script>
+</body>
+</html>
