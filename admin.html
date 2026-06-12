@@ -98,7 +98,7 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
 .top-qty{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--amber);min-width:32px;text-align:right;}
 
 /* Comparativo evento/chuva */
-.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
 .comp-card{background:var(--s2);border-radius:10px;padding:14px;}
 .comp-tit{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
 .comp-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;}
@@ -247,10 +247,10 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
 
     <div class="fp">
       <span class="fp-t">Período:</span>
-      <button class="pb on" id="dp-7">7 dias</button>
-      <button class="pb" id="dp-30">30 dias</button>
-      <button class="pb" id="dp-90">3 meses</button>
-      <button class="pb" id="dp-365">1 ano</button>
+      <button class="pb on" id="dp-4">Últimos 4 finais de semana</button>
+      <button class="pb" id="dp-8">Últimos 8 finais de semana</button>
+      <button class="pb" id="dp-12">Últimos 3 meses</button>
+      <button class="pb" id="dp-all">Tudo</button>
     </div>
 
     <!-- KPIs -->
@@ -332,6 +332,16 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
         <div class="chart-title">Nota do dia pela equipe</div>
         <div class="chart-sub">Evolução da satisfação da equipe ao longo do tempo</div>
         <div class="chart-wrap"><canvas id="ch-nota"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Comparativo por dia da semana -->
+    <div class="charts-grid full">
+      <div class="chart-card">
+        <div class="chart-title">Faturamento médio por dia da semana</div>
+        <div class="chart-sub">Quinta, sexta e sábado costumam ter perfis diferentes — aqui dá pra comparar</div>
+        <div class="chart-wrap"><canvas id="ch-dow"></canvas></div>
+        <div class="comp-grid" id="dow-table" style="margin-top:16px"></div>
       </div>
     </div>
   </div>
@@ -465,14 +475,12 @@ function initNav(){
     });
   });
 
-  // Filtros dashboard
-  let dpAtual=7;
-  [['dp-7',7],['dp-30',30],['dp-90',90],['dp-365',365]].forEach(([id,dias])=>{
+  // Filtros dashboard — baseados em DIAS OPERADOS (qui/sex/sáb), não em dias corridos
+  [['dp-4',4],['dp-8',8],['dp-12',12],['dp-all',null]].forEach(([id,n])=>{
     document.getElementById(id).addEventListener('click',()=>{
-      document.querySelectorAll('.fp .pb').forEach(b=>b.classList.remove('on'));
+      document.querySelectorAll('#sec-dashboard .fp .pb').forEach(b=>b.classList.remove('on'));
       document.getElementById(id).classList.add('on');
-      dpAtual=dias;
-      carregarDashboard(dias);
+      carregarDashboard(n);
     });
   });
 
@@ -487,83 +495,97 @@ function initNav(){
   });
 }
 
-/* ══ DASHBOARD ════════════════════════════════════════════ */
-async function carregarDashboard(dias=7){
-  const hoje=new Date(); hoje.setHours(23,59,59,999);
-  const ini=new Date(); ini.setDate(ini.getDate()-(dias-1)); ini.setHours(0,0,0,0);
-
-  // Buscar sessões do período
-  const iniStr=ini.toISOString().slice(0,10);
-  const fimStr=hoje.toISOString().slice(0,10);
-  let sessoes=[];
+/* ══ DASHBOARD ════════════════════════════════════════════
+   Como o bar opera só qui/sex/sáb, "30 dias" não diz nada —
+   metade seria dias fechados. Em vez disso, trabalhamos com
+   "últimos N dias OPERADOS" (sessões fechadas reais).
+   n=null significa "tudo".
+═══════════════════════════════════════════════════════════ */
+async function carregarDashboard(n=4){
+  // Busca TODAS as sessões (equipe pequena, poucas sessões — não pesa)
+  let todasSessoes=[];
   try{
-    const s=await getDocs(query(collection(db,'sessoes'),
-      where('data','>=',iniStr),where('data','<=',fimStr)));
-    sessoes=s.docs.map(d=>({id:d.id,...d.data()}));
+    const s=await getDocs(collection(db,'sessoes'));
+    todasSessoes=s.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){console.error(e);}
 
-  // Buscar comandas do período
+  // Ordena por data desc e filtra só as fechadas (operações concluídas)
+  const fechadasOrdenadas=todasSessoes
+    .filter(s=>s.status==='fechado')
+    .sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+
+  // Pega as N mais recentes (ou todas, se n===null)
+  const selecionadas = n===null ? fechadasOrdenadas : fechadasOrdenadas.slice(0,n);
+  // Reordena cronologicamente (mais antiga primeiro) para os gráficos de linha/barra
+  const sessoesPeriodo = [...selecionadas].sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+
+  if(!sessoesPeriodo.length){
+    document.getElementById('kpi-grid').innerHTML=`
+      <div class="kpi"><div class="kpi-label">Sem dados</div>
+        <div class="kpi-val">—</div>
+        <div class="kpi-sub">Nenhuma sessão fechada ainda</div></div>`;
+    return;
+  }
+
+  // Busca comandas só dos dias selecionados (usa sessaoId, que são os IDs das sessões)
+  const sessaoIds=sessoesPeriodo.map(s=>s.id);
   let comandas=[];
   try{
-    const s=await getDocs(query(collection(db,'comandas'),
-      where('criadaEm','>=',Timestamp.fromDate(ini)),
-      where('criadaEm','<=',Timestamp.fromDate(hoje))));
-    comandas=s.docs.map(d=>d.data());
-  }catch(e){console.error(e);}
+    // Firestore 'in' aceita até 30 valores — se passar disso, busca em lotes
+    for(let i=0;i<sessaoIds.length;i+=30){
+      const lote=sessaoIds.slice(i,i+30);
+      const s=await getDocs(query(collection(db,'comandas'), where('sessaoId','in',lote)));
+      comandas.push(...s.docs.map(d=>d.data()));
+    }
+  }catch(e){console.error('Erro ao buscar comandas:',e);}
 
-  renderDashboard(sessoes, comandas, dias);
+  renderDashboard(sessoesPeriodo, comandas, todasSessoes);
 }
 
-function renderDashboard(sessoes, comandas, dias){
-  const fechadas=sessoes.filter(s=>s.status==='fechado');
+function renderDashboard(sessoesPeriodo, comandas, todasSessoes){
+  const fechadas=sessoesPeriodo; // já filtradas e ordenadas cronologicamente
   const totalFat=fechadas.reduce((a,s)=>a+(s.totalFaturado||0),0);
   const totalCmds=comandas.length;
-  const ticket=totalCmds>0?(totalFat/Math.max(fechadas.length,1)):0;
   const totalItens=comandas.reduce((a,c)=>a+c.itens.reduce((b,i)=>b+i.qty,0),0);
   const notaMedia=fechadas.filter(s=>s.fechamento?.nota).reduce((a,s,_,arr)=>a+s.fechamento.nota/arr.length,0);
+  const nDias=fechadas.length||1;
+
+  const totalAbertasSessoes=todasSessoes.filter(s=>s.status==='aberto').length;
 
   // KPIs
   document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi"><div class="kpi-label">Faturamento total</div>
       <div class="kpi-val o">R$ ${totalFat.toFixed(0)}</div>
-      <div class="kpi-sub">${dias} dias</div></div>
-    <div class="kpi green"><div class="kpi-label">Dias operados</div>
-      <div class="kpi-val g">${fechadas.length}</div>
-      <div class="kpi-sub">de ${sessoes.length} abertos</div></div>
-    <div class="kpi amber"><div class="kpi-label">Ticket médio/dia</div>
-      <div class="kpi-val a">R$ ${(totalFat/Math.max(fechadas.length,1)).toFixed(0)}</div>
-      <div class="kpi-sub">por sessão</div></div>
+      <div class="kpi-sub">${fechadas.length} ${fechadas.length===1?'dia operado':'dias operados'}</div></div>
+    <div class="kpi green"><div class="kpi-label">Faturamento médio</div>
+      <div class="kpi-val g">R$ ${(totalFat/nDias).toFixed(0)}</div>
+      <div class="kpi-sub">por dia de funcionamento</div></div>
+    <div class="kpi amber"><div class="kpi-label">Ticket médio</div>
+      <div class="kpi-val a">R$ ${totalCmds>0?(totalFat/totalCmds).toFixed(0):'—'}</div>
+      <div class="kpi-sub">por comanda</div></div>
     <div class="kpi"><div class="kpi-label">Comandas</div>
       <div class="kpi-val">${totalCmds}</div>
-      <div class="kpi-sub">${(totalCmds/Math.max(fechadas.length,1)).toFixed(1)} por dia</div></div>
+      <div class="kpi-sub">${(totalCmds/nDias).toFixed(1)} por dia</div></div>
     <div class="kpi blue"><div class="kpi-label">Itens vendidos</div>
       <div class="kpi-val b">${totalItens}</div>
-      <div class="kpi-sub">no período</div></div>
+      <div class="kpi-sub">${(totalItens/nDias).toFixed(0)} por dia</div></div>
     <div class="kpi amber"><div class="kpi-label">Nota média equipe</div>
       <div class="kpi-val a">${notaMedia>0?notaMedia.toFixed(1):'—'}</div>
-      <div class="kpi-sub">de 5 ⭐</div></div>
+      <div class="kpi-sub">de 5 ⭐${totalAbertasSessoes>0?` · ${totalAbertasSessoes} sessão em aberto`:''}</div></div>
   `;
 
-  // Dados por dia
-  const diasLabels=[];
-  const fatPorDia=[];
-  const cmdsPorDia=[];
-  const ticketPorDia=[];
+  // Labels = data de cada dia operado (dd/mm + dia da semana abreviado)
+  const DOW=['dom','seg','ter','qua','qui','sex','sáb'];
+  const diasLabels=fechadas.map(s=>{
+    const [y,m,d]=s.data.split('-').map(Number);
+    const dt=new Date(y,m-1,d);
+    return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')} ${DOW[dt.getDay()]}`;
+  });
+  const fatPorDia=fechadas.map(s=>s.totalFaturado||0);
+  const cmdsPorDia=fechadas.map(s=>comandas.filter(c=>c.sessaoId===s.id).length);
+  const ticketPorDia=fechadas.map((s,i)=>cmdsPorDia[i]>0?(fatPorDia[i]/cmdsPorDia[i]):0);
 
-  for(let i=dias-1;i>=0;i--){
-    const d=new Date(); d.setDate(d.getDate()-i);
-    const key=d.toISOString().slice(0,10);
-    const label=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-    diasLabels.push(label);
-    const sess=sessoes.find(s=>s.data===key);
-    const fat=sess?.totalFaturado||0;
-    const cmdsNoDia=comandas.filter(c=>c.sessaoId===key).length;
-    fatPorDia.push(fat);
-    cmdsPorDia.push(cmdsNoDia);
-    ticketPorDia.push(cmdsNoDia>0?fat/cmdsNoDia:0);
-  }
-
-  // Gráfico faturamento por dia
+  // Gráfico faturamento por dia operado
   criarOuAtualizar('ch-fat','bar',{
     labels:diasLabels,
     datasets:[{label:'Faturamento',data:fatPorDia,
@@ -712,13 +734,8 @@ function renderDashboard(sessoes, comandas, dias){
     </div>
   `;
 
-  // Nota da equipe ao longo do tempo
-  const notaPorDia=diasLabels.map((_,i)=>{
-    const d=new Date(); d.setDate(d.getDate()-(dias-1-i));
-    const key=d.toISOString().slice(0,10);
-    const sess=fechadas.find(s=>s.data===key);
-    return sess?.fechamento?.nota||null;
-  });
+  // Nota da equipe ao longo dos dias operados
+  const notaPorDia=fechadas.map(s=>s.fechamento?.nota||null);
   criarOuAtualizar('ch-nota','line',{
     labels:diasLabels,
     datasets:[{label:'Nota',data:notaPorDia,
@@ -726,6 +743,40 @@ function renderDashboard(sessoes, comandas, dias){
       tension:0.4,fill:true,pointRadius:4,pointBackgroundColor:'#ff2b4a',
       spanGaps:true}]
   },{yOpts:{min:0,max:5,ticks:{stepSize:1}}});
+
+  // Comparativo por dia da semana — qui vs sex vs sáb (ou outros dias, se houver)
+  const porDow={}; // {dow: {fat:[], cmds:[]}}
+  for(const s of fechadas){
+    const [y,m,d]=s.data.split('-').map(Number);
+    const dow=new Date(y,m-1,d).getDay();
+    if(!porDow[dow]) porDow[dow]={fat:[],cmds:0,n:0};
+    porDow[dow].fat.push(s.totalFaturado||0);
+    porDow[dow].cmds+=comandas.filter(c=>c.sessaoId===s.id).length;
+    porDow[dow].n++;
+  }
+  const dowOrdenados=Object.keys(porDow).map(Number).sort((a,b)=>a-b);
+  const DOWFULL=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  criarOuAtualizar('ch-dow','bar',{
+    labels:dowOrdenados.map(d=>DOWFULL[d]),
+    datasets:[
+      {label:'Faturamento médio',data:dowOrdenados.map(d=>{
+        const arr=porDow[d].fat;
+        return arr.reduce((a,b)=>a+b,0)/arr.length;
+      }),backgroundColor:'rgba(255,108,26,0.7)',borderColor:'#ff6c1a',borderWidth:1,borderRadius:4,yAxisID:'y'},
+    ]
+  },{yOpts:{ticks:{callback:v=>`R$${v.toFixed(0)}`}}});
+
+  // Tabela de apoio do comparativo por dia da semana
+  document.getElementById('dow-table').innerHTML = dowOrdenados.map(d=>{
+    const arr=porDow[d];
+    const fatMedio=arr.fat.reduce((a,b)=>a+b,0)/arr.n;
+    const cmdsMedia=arr.cmds/arr.n;
+    return `<div class="comp-card" style="text-align:center">
+      <div class="comp-tit">${DOWFULL[d]}</div>
+      <div class="comp-val" style="color:var(--orange)">R$ ${fatMedio.toFixed(0)}</div>
+      <div class="comp-sub">${arr.n} ${arr.n===1?'dia':'dias'} · ${cmdsMedia.toFixed(1)} comandas/dia</div>
+    </div>`;
+  }).join('');
 }
 
 /* ══ CALENDÁRIO ═══════════════════════════════════════════ */
