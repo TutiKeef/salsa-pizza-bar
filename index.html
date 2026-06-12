@@ -125,6 +125,17 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 .pend-badge.show{display:block;}
 
 /* ABAS */
+/* Faixa de aviso do dia — vinda do admin, dispensável */
+.aviso-banner{display:flex;align-items:center;gap:8px;
+  background:#2a1500;border-bottom:1px solid var(--orange);
+  padding:9px 14px;flex-shrink:0;}
+.aviso-banner-icon{font-size:14px;flex-shrink:0;}
+.aviso-banner-txt{flex:1;font-size:12px;color:var(--orange);font-weight:500;line-height:1.4;}
+.aviso-banner-x{background:transparent;border:none;color:var(--orange);
+  font-size:18px;line-height:1;padding:0 4px;cursor:pointer;flex-shrink:0;
+  -webkit-appearance:none;opacity:.7;}
+.aviso-banner-x:active{opacity:1;}
+
 .abas{display:flex;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;}
 .aba{flex:1;padding:11px 6px;background:transparent;border:none;color:var(--muted);
      font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
@@ -437,6 +448,11 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
       <button class="btn-fc" onclick="irFechamento()">Fechar caixa</button>
     </div>
   </div>
+  <div class="aviso-banner" id="aviso-banner" style="display:none">
+    <span class="aviso-banner-icon">📌</span>
+    <span class="aviso-banner-txt" id="aviso-banner-txt"></span>
+    <button class="aviso-banner-x" id="aviso-banner-x">×</button>
+  </div>
   <div class="abas">
     <button class="aba on" id="aba-cmd"  onclick="trocarAba('cmd',this)">
       Abertas <span class="bdg" id="bdg" style="display:none"></span>
@@ -569,7 +585,7 @@ const db=getFirestore(initializeApp(FB));
    _cp  = cardápio em memória (atualizado em tempo real)
 ═══════════════════════════════════════════════════════════ */
 let sid='', nome='', sdoc=null;
-let unsubCmd=null, unsubCP=null;
+let unsubCmd=null, unsubCP=null, unsubSessao=null;
 let sel={}, _cp=null, nota=0;
 const togs={}, togsF={};
 
@@ -632,6 +648,25 @@ function escutarCardapio(){
    - Se não → busca qualquer sessão com status='aberto'
    - Se não achar → mostra tela de abertura
 ═══════════════════════════════════════════════════════════ */
+/* ══ SESSÃO CANÔNICA ═════════════════════════════════════════
+   Se existirem MÚLTIPLAS sessões abertas ao mesmo tempo (ex: duas
+   pessoas abriram o caixa sem saber que já estava aberto), todo
+   mundo precisa convergir pra UMA SÓ — sempre a mais ANTIGA
+   (abertoEm asc), que é a "oficial" do dia.
+   Retorna {id, data} da sessão canônica, ou null se não houver
+   nenhuma sessão aberta.
+═══════════════════════════════════════════════════════════════ */
+async function buscarSessaoCanonica(){
+  const snap=await getDocs(query(
+    collection(db,'sessoes'),
+    where('status','==','aberto'),
+    orderBy('abertoEm','asc'),
+    limit(1)
+  ));
+  if(snap.empty) return null;
+  return {id:snap.docs[0].id, data:snap.docs[0].data()};
+}
+
 async function init(){
   mostrar('loading');
   desligarListeners();
@@ -645,8 +680,43 @@ async function init(){
   const sn=localStorage.getItem('s_nome');
   const ss=localStorage.getItem('s_sid');
 
-  // 1. Tem sessão salva e válida?
-  if(sn && ss){
+  // Busca a sessão canônica (mais antiga aberta) — sempre, mesmo
+  // que esse celular já tenha uma sessão salva. Isso garante que
+  // se houver múltiplas sessões abertas, TODOS convergem pra mesma.
+  let canon=null;
+  try{ canon=await buscarSessaoCanonica(); }
+  catch(e){ console.warn('Erro ao buscar sessão canônica:',e); }
+
+  // 1. Tem sessão salva localmente E ela é a canônica?
+  if(sn && ss && canon && canon.id===ss){
+    nome=sn; sid=ss; sdoc=canon.data;
+    await iniciarApp();
+    return;
+  }
+
+  // 2. Tem sessão salva, mas existe uma canônica DIFERENTE (duplicidade)
+  //    → migra silenciosamente pra canônica, mantendo o nome da pessoa
+  if(sn && canon && canon.id!==ss){
+    console.warn('Sessão duplicada detectada — migrando para sessão canônica:',canon.id);
+    nome=sn; sid=canon.id; sdoc=canon.data;
+    salvarLocal(nome,sid);
+    // Garante que a pessoa está na lista da equipe da sessão canônica
+    try{
+      const eq=sdoc.equipe||[];
+      if(!eq.includes(nome)){
+        eq.push(nome);
+        await updateDoc(doc(db,'sessoes',sid),{equipe:eq});
+        sdoc.equipe=eq;
+      }
+    }catch(e){}
+    toast('Sessão sincronizada com a equipe.');
+    await iniciarApp();
+    return;
+  }
+
+  // 3. Tem sessão salva, canônica não encontrada (erro de rede) →
+  //    tenta verificar diretamente a sessão salva, modo offline
+  if(sn && ss && !canon){
     try{
       const snap=await getDoc(doc(db,'sessoes',ss));
       if(snap.exists() && snap.data().status==='aberto'){
@@ -654,38 +724,28 @@ async function init(){
         await iniciarApp();
         return;
       }
-      // Documento existe mas não está mais aberto, ou não existe — remove referência
       localStorage.removeItem('s_sid');
     }catch(e){
-      // ERRO DE REDE: não remove s_sid, pode ser temporário.
-      // Tenta entrar direto assumindo que a sessão ainda é válida —
-      // o onSnapshot vai reconectar quando a rede voltar.
-      console.warn('Erro de rede ao verificar sessão, entrando offline:',e);
+      // Sem rede — entra offline com os dados salvos
+      console.warn('Erro de rede, entrando offline:',e);
       nome=sn; sid=ss; sdoc=sdoc||{abertoPor:sn,data:dHoje()};
       await iniciarApp();
       return;
     }
   }
 
-  // 2. Existe alguma sessão aberta no Firestore? Busca a mais recente.
-  try{
-    const snap=await getDocs(query(
-      collection(db,'sessoes'),
-      where('status','==','aberto'),
-      orderBy('abertoEm','desc'),
-      limit(1)
-    ));
-    if(!snap.empty){
-      sdoc=snap.docs[0].data();
-      sid=snap.docs[0].id;
-      renderDiaInfo(sdoc);
-      if(sn) document.getElementById('en-nome').value=sn;
-      mostrar('entrar');
-      return;
-    }
-  }catch(e){ console.error('Erro ao buscar sessão:',e); }
+  // 4. Existe sessão canônica mas esse celular não tem nome salvo
+  //    → pede o nome (tela "entrar")
+  if(canon){
+    sdoc=canon.data;
+    sid=canon.id;
+    renderDiaInfo(sdoc);
+    if(sn) document.getElementById('en-nome').value=sn;
+    mostrar('entrar');
+    return;
+  }
 
-  // 3. Nenhuma sessão aberta → mostrar abertura
+  // 5. Nenhuma sessão aberta em lugar nenhum → mostrar abertura
   document.getElementById('ab-data').value=dHoje();
   mostrar('abertura');
 }
@@ -713,6 +773,7 @@ window.addEventListener('pageshow', e=>{
     desligarListeners();
     escutarComandas();
     escutarCardapio();
+    escutarSessao();
   } else {
     // Memória foi perdida (raro no BFCache mas possível) — re-inicializa
     init();
@@ -740,6 +801,8 @@ document.addEventListener('visibilitychange', async ()=>{
         desligarListeners();
         escutarComandas();
         escutarCardapio();
+        escutarSessao();
+        renderAvisoBanner(sdoc.aviso||'');
       } else {
         // Sessão foi fechada ou não existe mais
         localStorage.removeItem('s_sid');
@@ -752,6 +815,7 @@ document.addEventListener('visibilitychange', async ()=>{
       desligarListeners();
       escutarComandas();
       escutarCardapio();
+      escutarSessao();
     }
   }, 400);
 });
@@ -773,8 +837,12 @@ setInterval(async ()=>{
       // Só recria listeners se tiverem caído
       if(!unsubCmd) escutarComandas();
       if(!unsubCP)  escutarCardapio();
+      if(!unsubSessao) escutarSessao();
+      renderAvisoBanner(sdoc.aviso||'');
       // Tenta reenviar rascunhos pendentes, se houver
       reenviarRascunhosPendentes();
+      // Verifica e funde sessões duplicadas, se surgirem
+      fundirSessoesDuplicadas();
     } else {
       localStorage.removeItem('s_sid');
       toast('O caixa foi encerrado por outro dispositivo.');
@@ -784,12 +852,87 @@ setInterval(async ()=>{
     console.warn('Keepalive: sem conexão, verificando listeners');
     if(!unsubCmd) escutarComandas();
     if(!unsubCP)  escutarCardapio();
+    if(!unsubSessao) escutarSessao();
   }
 }, 5 * 60 * 1000);
+
+/* ══ FUSÃO DE SESSÕES DUPLICADAS ══════════════════════════════
+   Se, por qualquer motivo (ex: alguém abriu o caixa de novo sem
+   saber que já estava aberto), existirem MÚLTIPLAS sessões com
+   status='aberto' simultaneamente:
+   1. A sessão canônica é a mais antiga (abertoEm asc)
+   2. Todas as comandas das sessões duplicadas são migradas
+      (sessaoId atualizado) para a sessão canônica
+   3. As sessões duplicadas são marcadas como 'fechado' (mescladas)
+   Roda automaticamente a cada keepalive — autocorreção em até 5min,
+   sem precisar editar nada manualmente no Firestore.
+═══════════════════════════════════════════════════════════════ */
+let _fundindoSessoes=false;
+async function fundirSessoesDuplicadas(){
+  if(_fundindoSessoes) return; // evita execuções simultâneas
+  _fundindoSessoes=true;
+  try{
+    const snap=await getDocs(query(collection(db,'sessoes'), where('status','==','aberto'), orderBy('abertoEm','asc')));
+    if(snap.size<=1) return; // nada pra fundir
+
+    const docs=snap.docs;
+    const canonicaId=docs[0].id; // mais antiga = canônica
+    const duplicadas=docs.slice(1);
+
+    for(const dupDoc of duplicadas){
+      const dupId=dupDoc.id;
+      const dupData=dupDoc.data();
+
+      // 1. Migra todas as comandas dessa sessão duplicada para a canônica
+      const cmdsSnap=await getDocs(query(collection(db,'comandas'), where('sessaoId','==',dupId)));
+      for(const cmdDoc of cmdsSnap.docs){
+        await updateDoc(doc(db,'comandas',cmdDoc.id), {sessaoId:canonicaId});
+      }
+
+      // 2. Mescla a equipe da duplicada na canônica
+      try{
+        const canonSnap=await getDoc(doc(db,'sessoes',canonicaId));
+        const canonData=canonSnap.data();
+        const equipeCanon=canonData.equipe||[];
+        const equipeDup=dupData.equipe||[];
+        const equipeUnida=[...new Set([...equipeCanon,...equipeDup])];
+        await updateDoc(doc(db,'sessoes',canonicaId), {equipe:equipeUnida});
+      }catch(e){}
+
+      // 3. Marca a duplicada como fechada/mesclada (não aparece mais em buscas)
+      await updateDoc(doc(db,'sessoes',dupId), {
+        status:'fechado',
+        mescladaEm: serverTimestamp(),
+        mescladaCom: canonicaId
+      });
+
+      console.warn(`Sessão duplicada ${dupId} mesclada em ${canonicaId} — ${cmdsSnap.size} comanda(s) migrada(s)`);
+    }
+
+    // Se ESTE celular não estava na canônica, migra agora
+    if(sid!==canonicaId){
+      const canonSnap=await getDoc(doc(db,'sessoes',canonicaId));
+      sid=canonicaId; sdoc=canonSnap.data();
+      salvarLocal(nome,sid);
+      desligarListeners();
+      escutarComandas();
+      escutarCardapio();
+      escutarSessao();
+      toast('Sessões duplicadas foram unificadas.');
+    } else {
+      toast(`${duplicadas.length} sessão(ões) duplicada(s) unificada(s) — comandas recuperadas!`);
+    }
+  }catch(e){
+    console.error('Erro ao fundir sessões duplicadas:',e);
+  }finally{
+    _fundindoSessoes=false;
+  }
+}
 
 function desligarListeners(){
   if(unsubCmd){unsubCmd();unsubCmd=null;}
   if(unsubCP){unsubCP();unsubCP=null;}
+  if(unsubSessao){unsubSessao();unsubSessao=null;}
 }
 
 /* ══ TOGGLES ══════════════════════════════════════════════
@@ -887,8 +1030,43 @@ async function iniciarApp(){
   mostrar('app');
   escutarCardapio();   // cardápio em tempo real
   escutarComandas();   // comandas em tempo real
+  escutarSessao();     // aviso do dia em tempo real
   reenviarRascunhosPendentes(); // tenta enviar comandas que ficaram pendentes
+  fundirSessoesDuplicadas();    // corrige sessões duplicadas imediatamente
 }
+
+/* ══ AVISO DO DIA ═════════════════════════════════════════
+   Escuta a sessão em tempo real para mostrar o "Aviso do dia"
+   definido pelo admin. Cada pessoa pode dispensar o aviso
+   individualmente (fica salvo no localStorage por sessão+texto);
+   se o admin trocar o texto, o aviso volta a aparecer.
+═══════════════════════════════════════════════════════════ */
+function escutarSessao(){
+  if(unsubSessao) unsubSessao();
+  unsubSessao=onSnapshot(doc(db,'sessoes',sid), snap=>{
+    if(!snap.exists()) return;
+    sdoc=snap.data();
+    renderAvisoBanner(sdoc.aviso||'');
+  }, err=>{ console.warn('onSnapshot sessão:',err); unsubSessao=null; });
+}
+
+function renderAvisoBanner(texto){
+  const banner=document.getElementById('aviso-banner');
+  const txt=document.getElementById('aviso-banner-txt');
+  if(!banner||!txt) return;
+  if(!texto){ banner.style.display='none'; return; }
+  // Verifica se essa pessoa já dispensou ESTE texto específico
+  const dispensado=localStorage.getItem('s_aviso_dispensado');
+  if(dispensado===texto){ banner.style.display='none'; return; }
+  txt.textContent=texto;
+  banner.style.display='flex';
+}
+
+document.getElementById('aviso-banner-x')?.addEventListener('click',()=>{
+  const txt=document.getElementById('aviso-banner-txt').textContent;
+  localStorage.setItem('s_aviso_dispensado', txt);
+  document.getElementById('aviso-banner').style.display='none';
+});
 
 /* ══ RENDER CARDÁPIO ══════════════════════════════════════ */
 function renderCP(){
