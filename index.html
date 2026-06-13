@@ -856,20 +856,17 @@ setInterval(async ()=>{
   }
 }, 5 * 60 * 1000);
 
-/* ══ FUSÃO DE SESSÕES DUPLICADAS ══════════════════════════════
-   Se, por qualquer motivo (ex: alguém abriu o caixa de novo sem
-   saber que já estava aberto), existirem MÚLTIPLAS sessões com
-   status='aberto' simultaneamente:
-   1. A sessão canônica é a mais antiga (abertoEm asc)
-   2. Todas as comandas das sessões duplicadas são migradas
-      (sessaoId atualizado) para a sessão canônica
-   3. As sessões duplicadas são marcadas como 'fechado' (mescladas)
-   Roda automaticamente a cada keepalive — autocorreção em até 5min,
-   sem precisar editar nada manualmente no Firestore.
+/* ══ FUSÃO DE SESSÕES DUPLICADAS (consolidação de histórico) ══
+   Comandas ABERTAS já são globais (não dependem de sid) — então
+   essa função NÃO é mais crítica para visibilidade. Ela existe
+   apenas para CONSOLIDAR o histórico/dashboard: se duas sessões
+   abertas existirem ao mesmo tempo, junta tudo na mais antiga
+   (sessaoId das comandas + lista de equipe) e fecha a duplicada.
+   Roda em background, sem pressa — se falhar, não quebra nada.
 ═══════════════════════════════════════════════════════════════ */
 let _fundindoSessoes=false;
 async function fundirSessoesDuplicadas(){
-  if(_fundindoSessoes) return; // evita execuções simultâneas
+  if(_fundindoSessoes) return;
   _fundindoSessoes=true;
   try{
     const snap=await getDocs(query(collection(db,'sessoes'), where('status','==','aberto'), orderBy('abertoEm','asc')));
@@ -883,44 +880,35 @@ async function fundirSessoesDuplicadas(){
       const dupId=dupDoc.id;
       const dupData=dupDoc.data();
 
-      // 1. Migra todas as comandas dessa sessão duplicada para a canônica
+      // Migra sessaoId das comandas (abertas e pagas) para a canônica —
+      // só para fins de histórico/dashboard consistentes
       const cmdsSnap=await getDocs(query(collection(db,'comandas'), where('sessaoId','==',dupId)));
       for(const cmdDoc of cmdsSnap.docs){
         await updateDoc(doc(db,'comandas',cmdDoc.id), {sessaoId:canonicaId});
       }
 
-      // 2. Mescla a equipe da duplicada na canônica
+      // Mescla a equipe
       try{
         const canonSnap=await getDoc(doc(db,'sessoes',canonicaId));
         const canonData=canonSnap.data();
-        const equipeCanon=canonData.equipe||[];
-        const equipeDup=dupData.equipe||[];
-        const equipeUnida=[...new Set([...equipeCanon,...equipeDup])];
+        const equipeUnida=[...new Set([...(canonData.equipe||[]),...(dupData.equipe||[])])];
         await updateDoc(doc(db,'sessoes',canonicaId), {equipe:equipeUnida});
       }catch(e){}
 
-      // 3. Marca a duplicada como fechada/mesclada (não aparece mais em buscas)
+      // Fecha a duplicada (não conta mais como sessão aberta)
       await updateDoc(doc(db,'sessoes',dupId), {
-        status:'fechado',
-        mescladaEm: serverTimestamp(),
-        mescladaCom: canonicaId
+        status:'fechado', mescladaEm: serverTimestamp(), mescladaCom: canonicaId
       });
 
-      console.warn(`Sessão duplicada ${dupId} mesclada em ${canonicaId} — ${cmdsSnap.size} comanda(s) migrada(s)`);
+      console.warn(`Sessão duplicada ${dupId} mesclada em ${canonicaId} — ${cmdsSnap.size} comanda(s)`);
     }
 
-    // Se ESTE celular não estava na canônica, migra agora
+    // Atualiza sid deste celular para a canônica, se necessário (não afeta
+    // visibilidade das comandas, só o fechamento de caixa)
     if(sid!==canonicaId){
       const canonSnap=await getDoc(doc(db,'sessoes',canonicaId));
       sid=canonicaId; sdoc=canonSnap.data();
       salvarLocal(nome,sid);
-      desligarListeners();
-      escutarComandas();
-      escutarCardapio();
-      escutarSessao();
-      toast('Sessões duplicadas foram unificadas.');
-    } else {
-      toast(`${duplicadas.length} sessão(ões) duplicada(s) unificada(s) — comandas recuperadas!`);
     }
   }catch(e){
     console.error('Erro ao fundir sessões duplicadas:',e);
@@ -1261,40 +1249,72 @@ async function reenviarRascunhosPendentes(){
 
 /* ══ ESCUTAR COMANDAS ═════════════════════════════════════ */
 let _reconectarTentativas=0;
+/* ══ ESCUTAR COMANDAS — ARQUITETURA SIMPLIFICADA ═════════════
+   Antes: comandas eram filtradas por sessaoId==sid. Se dois
+   celulares estivessem em sessões diferentes (por qualquer
+   motivo — duplicidade, fusão incompleta, sid desatualizado),
+   cada um via um conjunto diferente de comandas. Isso causava
+   "as comandas do João não aparecem pro Pedro".
+
+   AGORA: comandas ABERTAS são GLOBAIS — todo mundo vê TODAS as
+   comandas com status='aberta', independente de qual sessão/sid
+   o celular está. Não existe mais "sessão errada" pra isolar
+   ninguém. sessaoId continua sendo gravado (útil pro dashboard/
+   histórico), mas NÃO é mais usado pra decidir o que aparece.
+
+   Histórico (comandas pagas) continua filtrado por sessaoId,
+   pois faz sentido mostrar só o histórico do turno atual.
+═══════════════════════════════════════════════════════════════ */
 function escutarComandas(){
   if(unsubCmd) unsubCmd();
   unsubCmd=null;
-  if(!sid) return;
-  const q=query(collection(db,'comandas'),where('sessaoId','==',sid));
-  unsubCmd=onSnapshot(q,snap=>{
-    _reconectarTentativas=0; // reset ao receber dados com sucesso
-    const todas=snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  // Query 1: TODAS as comandas abertas, sem filtro de sessão
+  const qAbertas=query(collection(db,'comandas'),where('status','==','aberta'));
+  // Query 2: comandas pagas desta sessão (histórico do turno)
+  const qPagas=sid ? query(collection(db,'comandas'),where('sessaoId','==',sid),where('status','==','paga')) : null;
+
+  let _abertasCache=[], _pagasCache=[];
+
+  const renderTudo=()=>{
+    const todas=[..._abertasCache, ..._pagasCache];
     todas.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0));
-    const abertas=todas.filter(c=>c.status==='aberta');
-    const pagas  =todas.filter(c=>c.status==='paga');
-    renderAbertas(abertas);
-    renderHistorico(pagas);
+    renderAbertas(_abertasCache.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0)));
+    renderHistorico(_pagasCache.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0)));
     const bdg=document.getElementById('bdg');
     if(bdg){
-      bdg.textContent=abertas.length;
-      bdg.style.display=abertas.length>0?'inline-flex':'none';
+      bdg.textContent=_abertasCache.length;
+      bdg.style.display=_abertasCache.length>0?'inline-flex':'none';
     }
-  },err=>{
+  };
+
+  const onErr=err=>{
     console.error('onSnapshot comandas:',err);
-    unsubCmd=null; // marca como caído para o keepalive detectar
+    unsubCmd=null;
     _reconectarTentativas++;
-    if(_reconectarTentativas<=5 && sid && nome){
+    if(_reconectarTentativas<=5 && nome){
       if(_reconectarTentativas===1) toast('Reconectando...');
-      setTimeout(()=>{ escutarComandas(); },
-        Math.min(3000*_reconectarTentativas, 15000));
+      setTimeout(()=>{ escutarComandas(); }, Math.min(3000*_reconectarTentativas, 15000));
     } else if(_reconectarTentativas===6){
-      // Mostra o aviso só uma vez. O keepalive (5min) vai continuar
-      // tentando silenciosamente em background — quando a rede voltar
-      // ele reconecta sem precisar recarregar a página.
       toast('Sem conexão. Tentando reconectar em background...');
     }
-    // Acima de 6 tentativas, fica em silêncio — o keepalive assume.
-  });
+  };
+
+  const unsubA=onSnapshot(qAbertas, snap=>{
+    _reconectarTentativas=0;
+    _abertasCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderTudo();
+  }, onErr);
+
+  let unsubP=()=>{};
+  if(qPagas){
+    unsubP=onSnapshot(qPagas, snap=>{
+      _pagasCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderTudo();
+    }, onErr);
+  }
+
+  unsubCmd=()=>{ unsubA(); unsubP(); };
 }
 
 /* ══ RENDER COMANDAS ABERTAS — preços discriminados ═══════
