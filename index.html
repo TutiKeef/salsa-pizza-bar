@@ -293,6 +293,12 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 .search-input:focus{border-color:var(--orange);}
 .search-input::placeholder{color:var(--muted);}
 
+/* Botão voltar para categorias */
+.btn-voltar-cat{background:transparent;border:1px solid var(--border);color:var(--muted);
+  font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 14px;border-radius:8px;
+  cursor:pointer;-webkit-appearance:none;margin-bottom:4px;display:inline-block;}
+.btn-voltar-cat:active{border-color:var(--orange);color:var(--orange);}
+
 /* Grid de botões quadrados — cardápio (E) */
 .cp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
 .cp-grid-btn{background:var(--s1);border:2px solid var(--border);border-radius:12px;
@@ -1091,26 +1097,50 @@ document.getElementById('aviso-banner-x')?.addEventListener('click',()=>{
   document.getElementById('aviso-banner').style.display='none';
 });
 
-/* ══ RENDER CARDÁPIO — grade de botões quadrados (E) ══════ */
+/* ══ RENDER CARDÁPIO — navegação por categorias (E) ═══════
+   1. Tela inicial: grid de categorias (Pizzas, Bebidas, etc)
+   2. Após clicar: grid de itens daquela categoria
+   3. Botão "← Categorias" para voltar
+═══════════════════════════════════════════════════════════ */
+let _catSel=null; // índice da categoria selecionada (null = tela de categorias)
+
 function renderCP(){
   if(!_cp)return;
   const r=document.getElementById('cp-r');
   if(!r)return;
-  r.innerHTML=_cp.map((cat,ci)=>
-    `<div class="cp-grid">
-      <div class="cp-cat-label">${cat.categoria}</div>
-      ${cat.itens.map((it,ii)=>{
-        const k=`${ci}_${ii}`,s=sel[k],q=s?s.qty:0;
-        return `<button class="cp-grid-btn${q>0?' sel':''}" onclick="addI('${ci}','${ii}')">
-          <span class="cp-grid-nome">${it.nome}</span>
-          <span class="cp-grid-preco">R$ ${it.preco}</span>
-          ${q>0?`<span class="cp-grid-qty">${q}× <span onclick="event.stopPropagation();chgI('${ci}','${ii}',-1)" style="margin-left:4px;opacity:.7">−</span></span>`:''}
-        </button>`;
-      }).join('')}
-    </div>`
-  ).join('');
+  if(_catSel===null){
+    // Tela de categorias
+    r.innerHTML=`
+      <div class="cp-grid">
+        ${_cp.map((cat,ci)=>{
+          const total=Object.entries(sel).filter(([k])=>k.startsWith(ci+'_')).reduce((a,[,s])=>a+s.qty,0);
+          return `<button class="cp-grid-btn${total>0?' sel':''}" onclick="selecionarCat(${ci})">
+            <span class="cp-grid-nome">${cat.categoria}</span>
+            ${total>0?`<span class="cp-grid-qty">${total}×</span>`:''}
+          </button>`;
+        }).join('')}
+      </div>`;
+  } else {
+    // Tela de itens da categoria selecionada
+    const cat=_cp[_catSel];
+    r.innerHTML=`
+      <button class="btn-voltar-cat" onclick="voltarCats()">← ${cat.categoria}</button>
+      <div class="cp-grid" style="margin-top:8px">
+        ${cat.itens.map((it,ii)=>{
+          const k=`${_catSel}_${ii}`,s=sel[k],q=s?s.qty:0;
+          return `<button class="cp-grid-btn${q>0?' sel':''}" onclick="addI('${_catSel}','${ii}')">
+            <span class="cp-grid-nome">${it.nome}</span>
+            <span class="cp-grid-preco">R$ ${it.preco}</span>
+            ${q>0?`<span class="cp-grid-qty">${q}× <span onclick="event.stopPropagation();chgI('${_catSel}','${ii}',-1)" style="margin-left:4px;opacity:.7">−</span></span>`:''}
+          </button>`;
+        }).join('')}
+      </div>`;
+  }
   atuRes();
 }
+
+window.selecionarCat=function(ci){ _catSel=ci; renderCP(); }
+window.voltarCats=function(){ _catSel=null; renderCP(); }
 
 window.addI=function(ci,ii){
   const k=`${ci}_${ii}`;
@@ -1282,40 +1312,23 @@ async function reenviarRascunhosPendentes(){
   }catch(e){ console.error('Erro ao reenviar rascunhos:',e); }
 }
 
-/* ══ ESCUTAR COMANDAS ═════════════════════════════════════ */
 let _reconectarTentativas=0;
-/* ══ ESCUTAR COMANDAS — ARQUITETURA SIMPLIFICADA ═════════════
-   Antes: comandas eram filtradas por sessaoId==sid. Se dois
-   celulares estivessem em sessões diferentes (por qualquer
-   motivo — duplicidade, fusão incompleta, sid desatualizado),
-   cada um via um conjunto diferente de comandas. Isso causava
-   "as comandas do João não aparecem pro Pedro".
-
-   AGORA: comandas ABERTAS são GLOBAIS — todo mundo vê TODAS as
-   comandas com status='aberta', independente de qual sessão/sid
-   o celular está. Não existe mais "sessão errada" pra isolar
-   ninguém. sessaoId continua sendo gravado (útil pro dashboard),
-   mas NÃO é mais usado pra decidir o que aparece.
-
-   FECHADAS (comandas pagas) agora também são GLOBAIS — mesmo
-   problema das abertas: filtrar por sessaoId fazia cada celular
-   ver só o que ELE MESMO pagou. Agora mostra TODAS as comandas
-   pagas de HOJE, independente de quem pagou ou em qual sessão.
+/* ══ ESCUTAR COMANDAS ═════════════════════════════════════════
+   ABERTAS: globais, todo mundo vê tudo, sem filtro.
+   FECHADAS: da sessão atual (sid) — isso define o "turno".
+     - Não depende de data → não quebra na virada da meia-noite
+     - Não depende do relógio do celular → igual em todos os dispositivos
+     - Cada garçom vê as mesmas fechadas → filtro é por sessaoId, não por quem fechou
 ═══════════════════════════════════════════════════════════════ */
 function escutarComandas(){
   if(unsubCmd) unsubCmd();
   unsubCmd=null;
+  if(!sid) return;
 
-  // Query 1: TODAS as comandas abertas, sem filtro de sessão
+  // Abertas: globais
   const qAbertas=query(collection(db,'comandas'),where('status','==','aberta'));
-
-  // Query 2: TODAS as comandas pagas HOJE (independente de sessão/quem pagou)
-  const inicioHoje=new Date(); inicioHoje.setHours(0,0,0,0);
-  const qPagas=query(
-    collection(db,'comandas'),
-    where('status','==','paga'),
-    where('pagaEm','>=', inicioHoje)
-  );
+  // Fechadas: desta sessão (turno atual) — sem filtro de data
+  const qPagas=query(collection(db,'comandas'),where('sessaoId','==',sid),where('status','==','paga'));
 
   let _abertasCache=[], _pagasCache=[];
 
@@ -1333,24 +1346,22 @@ function escutarComandas(){
     console.error('onSnapshot comandas:',err);
     unsubCmd=null;
     _reconectarTentativas++;
+    if(_reconectarTentativas===1) toast('Sem conexão — reconectando...');
     if(_reconectarTentativas<=5 && nome){
-      if(_reconectarTentativas===1) toast('Reconectando...');
-      setTimeout(()=>{ escutarComandas(); }, Math.min(3000*_reconectarTentativas, 15000));
-    } else if(_reconectarTentativas===6){
-      toast('Sem conexão. Tentando reconectar em background...');
+      setTimeout(()=>{ escutarComandas(); }, Math.min(3000*_reconectarTentativas,15000));
     }
   };
 
-  const unsubA=onSnapshot(qAbertas, snap=>{
+  const unsubA=onSnapshot(qAbertas,snap=>{
     _reconectarTentativas=0;
     _abertasCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTudo();
-  }, onErr);
+  },onErr);
 
-  const unsubP=onSnapshot(qPagas, snap=>{
+  const unsubP=onSnapshot(qPagas,snap=>{
     _pagasCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTudo();
-  }, onErr);
+  },onErr);
 
   unsubCmd=()=>{ unsubA(); unsubP(); };
 }
@@ -1468,10 +1479,9 @@ window.excluirComanda=async function(cmdId){
   );
 }
 
-/* ══ ADICIONAR ITENS ══════════════════════════════════════ */
-let _addId='', _addSel={};
+let _addId='', _addSel={}, _addCatSel=null;
 window.abrirModalAdicionar=function(cmdId){
-  _addId=cmdId; _addSel={};
+  _addId=cmdId; _addSel={}; _addCatSel=null;
   if(!_cp){toast('Cardápio carregando...');return;}
   renderModalAdd();
   document.getElementById('modal').classList.add('show');
@@ -1483,23 +1493,40 @@ function renderModalAdd(){
     const [ci,ii]=k.split('_').map(Number);
     return a+s.qty*(_cp[ci]?.itens[ii]?.preco||0);
   },0);
+
+  let gridHtml='';
+  if(_addCatSel===null){
+    // Grid de categorias
+    gridHtml=`<div class="cp-grid">
+      ${(_cp||CPF).map((cat,ci)=>{
+        const total=Object.entries(_addSel).filter(([k])=>k.startsWith(ci+'_')).reduce((a,[,s])=>a+s.qty,0);
+        return `<button class="cp-grid-btn${total>0?' sel':''}" onclick="addCatSel(${ci})">
+          <span class="cp-grid-nome">${cat.categoria}</span>
+          ${total>0?`<span class="cp-grid-qty">${total}×</span>`:''}
+        </button>`;
+      }).join('')}
+    </div>`;
+  } else {
+    // Grid de itens da categoria
+    const cat=(_cp||CPF)[_addCatSel];
+    gridHtml=`
+      <button class="btn-voltar-cat" onclick="addCatSel(null)">← ${cat.categoria}</button>
+      <div class="cp-grid" style="margin-top:8px">
+        ${cat.itens.map((it,ii)=>{
+          const k=`${_addCatSel}_${ii}`,s=_addSel[k],q=s?s.qty:0;
+          return `<button class="cp-grid-btn${q>0?' sel':''}" onclick="addMA('${_addCatSel}','${ii}')">
+            <span class="cp-grid-nome">${it.nome}</span>
+            <span class="cp-grid-preco">R$ ${it.preco}</span>
+            ${q>0?`<span class="cp-grid-qty">${q}×</span>`:''}
+          </button>`;
+        }).join('')}
+      </div>`;
+  }
+
   document.getElementById('modal-box').innerHTML=`
     <div class="mt">Adicionar itens</div>
-    <div class="ms">${qty>0?`${qty} itens — R$ ${tot}`:'Selecione os itens'}</div>
-    <div style="margin-bottom:16px">
-      ${(_cp||CPF).map((cat,ci)=>`
-        <div class="cp-grid">
-          <div class="cp-cat-label">${cat.categoria}</div>
-          ${cat.itens.map((it,ii)=>{
-            const k=`${ci}_${ii}`,s=_addSel[k],q=s?s.qty:0;
-            return `<button class="cp-grid-btn${q>0?' sel':''}" onclick="addMA('${ci}','${ii}')">
-              <span class="cp-grid-nome">${it.nome}</span>
-              <span class="cp-grid-preco">R$ ${it.preco}</span>
-              ${q>0?`<span class="cp-grid-qty">${q}×</span>`:''}
-            </button>`;
-          }).join('')}
-        </div>`).join('')}
-    </div>
+    <div class="ms">${qty>0?`${qty} itens — R$ ${tot}`:'Selecione uma categoria'}</div>
+    <div style="margin-bottom:16px">${gridHtml}</div>
     <div class="mbtns">
       <button class="bmc" onclick="fecharModal()">Cancelar</button>
       <button class="bmo" onclick="confirmarAdd()" ${qty===0?'disabled style="opacity:.3"':''}>
@@ -1508,6 +1535,7 @@ function renderModalAdd(){
     </div>`;
 }
 
+window.addCatSel=function(ci){ _addCatSel=ci; renderModalAdd(); }
 window.addMA=function(ci,ii){const k=`${ci}_${ii}`;if(!_addSel[k])_addSel[k]={qty:0};_addSel[k].qty++;renderModalAdd();}
 window.chgMA=function(ci,ii,d){const k=`${ci}_${ii}`;if(!_addSel[k])return;_addSel[k].qty=Math.max(0,_addSel[k].qty+d);if(_addSel[k].qty===0)delete _addSel[k];renderModalAdd();}
 
@@ -1772,8 +1800,10 @@ window.trocarAba=function(id,btn){
 
 /* Abre a tela de nova comanda via FAB — sem afetar o estado das abas */
 window.abrirNovaComanda=function(){
+  _catSel=null; // sempre começa na tela de categorias
   document.querySelectorAll('.stela').forEach(t=>t.classList.remove('on'));
   document.getElementById('st-nova').classList.add('on');
+  renderCP();
 }
 /* Volta da tela de nova comanda pra aba Abertas */
 window.voltarAbertas=function(){
