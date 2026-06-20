@@ -163,30 +163,6 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
     text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:2px 0 4px;}
 .cn{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;
     color:var(--orange);margin:6px 0 4px;padding-left:2px;}
-.ic{background:var(--s1);border:1px solid var(--border);border-radius:8px;
-    padding:10px 12px;display:flex;align-items:center;gap:10px;
-    user-select:none;margin-bottom:3px;}
-.ic.sel{border-color:var(--orange);background:#2a1a0a;}
-.ii{flex:1;min-width:0;cursor:pointer;}
-.in{font-size:14px;font-weight:500;line-height:1.2;}
-.ip{font-size:12px;color:var(--muted);margin-top:1px;}
-.ict{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.bq{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);
-    background:var(--s2);color:var(--cream);font-size:18px;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;line-height:1;-webkit-appearance:none;}
-.bq.m{border-color:var(--orange);color:var(--orange);}
-.qn{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;
-    min-width:18px;text-align:center;}
-.or{display:none;padding:3px 12px 8px;background:var(--s1);
-    border:1px solid var(--border);border-top:none;
-    border-radius:0 0 8px 8px;margin-top:-4px;margin-bottom:3px;}
-.or.vis{display:flex;align-items:center;gap:6px;}
-.or label{font-size:10px;color:var(--muted);white-space:nowrap;}
-.or input{flex:1;background:transparent;border:none;
-          border-bottom:1px solid var(--border);color:var(--amber);
-          font-family:'DM Sans',sans-serif;font-size:14px;
-          font-style:italic;padding:3px 0;outline:none;}
 
 .bar-env{position:fixed;bottom:0;left:0;right:0;background:var(--s1);
          border-top:1px solid var(--border);
@@ -380,25 +356,6 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
        border-radius:8px;color:var(--red);font-family:'Syne',sans-serif;
        font-size:14px;font-weight:700;cursor:pointer;-webkit-appearance:none;}
 
-/* Modal cardápio */
-.mc-cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;
-        color:var(--orange);margin:8px 0 3px;padding-left:2px;}
-.mc-ic{background:var(--s2);border:1px solid var(--border);border-radius:8px;
-       padding:9px 12px;display:flex;align-items:center;gap:10px;
-       user-select:none;margin-bottom:4px;}
-.mc-ic.sel{border-color:var(--orange);background:#2a1a0a;}
-.mc-i{flex:1;min-width:0;cursor:pointer;}
-.mc-nm{font-size:13px;font-weight:500;}
-.mc-pr{font-size:11px;color:var(--muted);margin-top:1px;}
-.mc-ct{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-.mc-bq{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
-       background:var(--s3);color:var(--cream);font-size:15px;
-       display:flex;align-items:center;justify-content:center;
-       cursor:pointer;-webkit-appearance:none;}
-.mc-bq.m{border-color:var(--orange);color:var(--orange);}
-.mc-qn{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
-       min-width:16px;text-align:center;}
-
 /* TOAST */
 #toast{position:fixed;bottom:calc(90px + var(--sb));left:50%;
        transform:translateX(-50%) translateY(10px);
@@ -531,7 +488,7 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 
   <div class="stela" id="st-hist">
     <div class="hw" id="lista-hist">
-      <div class="vz">Nenhuma comanda fechada ainda hoje.</div>
+      <div class="vz">Nenhuma comanda fechada neste turno.</div>
     </div>
   </div>
 </div>
@@ -911,41 +868,27 @@ async function fundirSessoesDuplicadas(){
   _fundindoSessoes=true;
   try{
     const snap=await getDocs(query(collection(db,'sessoes'), where('status','==','aberto'), orderBy('abertoEm','asc')));
-    if(snap.size<=1) return; // nada pra fundir
-
+    if(snap.size<=1){ _fundindoSessoes=false; return; }
     const docs=snap.docs;
-    const canonicaId=docs[0].id; // mais antiga = canônica
+    const canonicaId=docs[0].id;
     const duplicadas=docs.slice(1);
-
     for(const dupDoc of duplicadas){
       const dupId=dupDoc.id;
       const dupData=dupDoc.data();
-
-      // Migra sessaoId das comandas (abertas e pagas) para a canônica —
-      // só para fins de histórico/dashboard consistentes
       const cmdsSnap=await getDocs(query(collection(db,'comandas'), where('sessaoId','==',dupId)));
       for(const cmdDoc of cmdsSnap.docs){
         await updateDoc(doc(db,'comandas',cmdDoc.id), {sessaoId:canonicaId});
       }
-
-      // Mescla a equipe
       try{
         const canonSnap=await getDoc(doc(db,'sessoes',canonicaId));
         const canonData=canonSnap.data();
         const equipeUnida=[...new Set([...(canonData.equipe||[]),...(dupData.equipe||[])])];
         await updateDoc(doc(db,'sessoes',canonicaId), {equipe:equipeUnida});
       }catch(e){}
-
-      // Fecha a duplicada (não conta mais como sessão aberta)
       await updateDoc(doc(db,'sessoes',dupId), {
         status:'fechado', mescladaEm: serverTimestamp(), mescladaCom: canonicaId
       });
-
-      console.warn(`Sessão duplicada ${dupId} mesclada em ${canonicaId} — ${cmdsSnap.size} comanda(s)`);
     }
-
-    // Atualiza sid deste celular para a canônica, se necessário (não afeta
-    // visibilidade das comandas, só o fechamento de caixa)
     if(sid!==canonicaId){
       const canonSnap=await getDoc(doc(db,'sessoes',canonicaId));
       sid=canonicaId; sdoc=canonSnap.data();
@@ -953,15 +896,19 @@ async function fundirSessoesDuplicadas(){
     }
   }catch(e){
     console.error('Erro ao fundir sessões duplicadas:',e);
-  }finally{
-    _fundindoSessoes=false;
   }
+  _fundindoSessoes=false;
 }
 
 function desligarListeners(){
   if(unsubCmd){unsubCmd();unsubCmd=null;}
   if(unsubCP){unsubCP();unsubCP=null;}
   if(unsubSessao){unsubSessao();unsubSessao=null;}
+  if(_reconectarTimer){clearTimeout(_reconectarTimer);_reconectarTimer=null;}
+  _recontando=false;
+  _reconectarTentativas=0;
+  _sessaoCache=[];
+  _globaisCache=[];
 }
 
 /* ══ TOGGLES ══════════════════════════════════════════════
@@ -1072,11 +1019,13 @@ async function iniciarApp(){
 ═══════════════════════════════════════════════════════════ */
 function escutarSessao(){
   if(unsubSessao) unsubSessao();
+  unsubSessao=null;
+  if(!sid) return;
   unsubSessao=onSnapshot(doc(db,'sessoes',sid), snap=>{
     if(!snap.exists()) return;
     sdoc=snap.data();
     renderAvisoBanner(sdoc.aviso||'');
-  }, err=>{ console.warn('onSnapshot sessão:',err); unsubSessao=null; });
+  }, err=>{ console.warn('onSnapshot sessão aviso:',err); unsubSessao=null; });
 }
 
 function renderAvisoBanner(texto){
@@ -1226,7 +1175,6 @@ window.confirmarComanda=async function(){
 async function salvarComandaComRetry(comanda, cliNome, tentativa=1){
   try{
     await addDoc(collection(db,'comandas'), comanda);
-    // Sucesso — remove rascunho se existia
     removerRascunho(comanda);
     sel={};
     const elCli=document.getElementById('inp-cli');
@@ -1239,17 +1187,15 @@ async function salvarComandaComRetry(comanda, cliNome, tentativa=1){
   }catch(e){
     console.error(`Tentativa ${tentativa} falhou:`,e);
     if(tentativa===1){
-      // Primeira falha: salva rascunho local imediatamente
       salvarRascunho(comanda);
       toast(`Sem conexão — comanda de ${cliNome} salva localmente, tentando enviar...`);
     }
     if(tentativa<=10){
-      // Tenta de novo a cada 5s, até 10 vezes (~50s)
       setTimeout(()=>salvarComandaComRetry(comanda, cliNome, tentativa+1), 5000);
     } else {
-      toast(`⚠ Comanda de ${cliNome} NÃO foi enviada. Está salva no celular — não saia do app!`);
-      // Continua tentando de 30 em 30s indefinidamente
-      setTimeout(()=>salvarComandaComRetry(comanda, cliNome, 11), 30000);
+      // Para de tentar recursivamente — o reenviarRascunhosPendentes()
+      // do keepalive (5min) vai cuidar do reenvio quando a rede voltar
+      toast(`⚠ Comanda de ${cliNome} salva no celular. Será enviada automaticamente ao reconectar.`);
     }
   }
 }
@@ -1313,57 +1259,72 @@ async function reenviarRascunhosPendentes(){
 }
 
 let _reconectarTentativas=0;
-/* ══ ESCUTAR COMANDAS ═════════════════════════════════════════
-   ABERTAS: globais, todo mundo vê tudo, sem filtro.
-   FECHADAS: da sessão atual (sid) — isso define o "turno".
-     - Não depende de data → não quebra na virada da meia-noite
-     - Não depende do relógio do celular → igual em todos os dispositivos
-     - Cada garçom vê as mesmas fechadas → filtro é por sessaoId, não por quem fechou
-═══════════════════════════════════════════════════════════════ */
+let _recontando=false;
+let _reconectarTimer=null;
+let _sessaoCache=[], _globaisCache=[];
+
 function escutarComandas(){
   if(unsubCmd) unsubCmd();
   unsubCmd=null;
+  // Cancela qualquer reconexão pendente — evita múltiplas
+  // chamadas se keepalive/pageshow chamarem junto
+  if(_reconectarTimer){ clearTimeout(_reconectarTimer); _reconectarTimer=null; }
+  _recontando=false;
   if(!sid) return;
 
-  // Abertas: globais
-  const qAbertas=query(collection(db,'comandas'),where('status','==','aberta'));
-  // Fechadas: desta sessão (turno atual) — sem filtro de data
-  const qPagas=query(collection(db,'comandas'),where('sessaoId','==',sid),where('status','==','paga'));
-
-  let _abertasCache=[], _pagasCache=[];
+  const q=query(collection(db,'comandas'),where('sessaoId','==',sid));
+  const qAbertasGlobais=query(collection(db,'comandas'),where('status','==','aberta'));
 
   const renderTudo=()=>{
-    renderAbertas(_abertasCache.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0)));
-    renderHistorico(_pagasCache.sort((a,b)=>(b.pagaEm?.seconds||0)-(a.pagaEm?.seconds||0)));
+    const todasAbertas=[..._globaisCache];
+    const fechadas=_sessaoCache.filter(c=>c.status==='paga');
+    renderAbertas(todasAbertas.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0)));
+    renderHistorico(fechadas.sort((a,b)=>(b.pagaEm?.seconds||0)-(a.pagaEm?.seconds||0)));
     const bdg=document.getElementById('bdg');
     if(bdg){
-      bdg.textContent=_abertasCache.length;
-      bdg.style.display=_abertasCache.length>0?'inline-flex':'none';
+      bdg.textContent=todasAbertas.length;
+      bdg.style.display=todasAbertas.length>0?'inline-flex':'none';
     }
   };
 
-  const onErr=err=>{
-    console.error('onSnapshot comandas:',err);
-    unsubCmd=null;
+  const tentarReconectar=()=>{
+    if(_recontando) return;
+    _recontando=true;
     _reconectarTentativas++;
-    if(_reconectarTentativas===1) toast('Sem conexão — reconectando...');
-    if(_reconectarTentativas<=5 && nome){
-      setTimeout(()=>{ escutarComandas(); }, Math.min(3000*_reconectarTentativas,15000));
-    }
+    // Toast só na primeira falha — sem spam
+    if(_reconectarTentativas===1) toast('Sem conexão — tentando reconectar...');
+    const delay=Math.min(5000*_reconectarTentativas, 30000);
+    _reconectarTimer=setTimeout(()=>{
+      _reconectarTimer=null;
+      _recontando=false;
+      if(sid && nome) escutarComandas();
+    }, delay);
   };
 
-  const unsubA=onSnapshot(qAbertas,snap=>{
+  const unsubS=onSnapshot(q, snap=>{
     _reconectarTentativas=0;
-    _abertasCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+    _recontando=false;
+    if(_reconectarTimer){ clearTimeout(_reconectarTimer); _reconectarTimer=null; }
+    _sessaoCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTudo();
-  },onErr);
+  }, err=>{
+    console.error('onSnapshot sessão:',err);
+    unsubCmd=null;
+    tentarReconectar();
+  });
 
-  const unsubP=onSnapshot(qPagas,snap=>{
-    _pagasCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const unsubG=onSnapshot(qAbertasGlobais, snap=>{
+    _globaisCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTudo();
-  },onErr);
+  }, err=>{
+    // Se a query global falhar, usa fallback das comandas da sessão
+    // sem disparar nova reconexão (evita duplo toast)
+    console.warn('onSnapshot globais falhou, usando fallback da sessão');
+    _globaisCache=_sessaoCache.filter(c=>c.status==='aberta');
+    renderTudo();
+  });
 
-  unsubCmd=()=>{ unsubA(); unsubP(); };
+  unsubCmd=()=>{ unsubS(); unsubG(); };
 }
 
 /* ══ RENDER COMANDAS ABERTAS — preços discriminados ═══════
@@ -1650,7 +1611,7 @@ function renderHistorico(cmds){
   const w=document.getElementById('lista-hist');
   if(!w)return;
   if(!cmds.length){
-    w.innerHTML='<div class="vz">Nenhuma comanda fechada ainda hoje.</div>';
+    w.innerHTML='<div class="vz">Nenhuma comanda fechada neste turno.</div>';
     return;
   }
   w.innerHTML=cmds.map(c=>`
@@ -1690,12 +1651,14 @@ function renderHistorico(cmds){
 }
 
 window.reabrirComanda=async function(cmdId,cli){
-  await atualizarComRetry(async ()=>{
-    await updateDoc(doc(db,'comandas',cmdId),{
+  await atualizarComRetry(
+    ()=>updateDoc(doc(db,'comandas',cmdId),{
       status:'aberta', pagaEm:deleteField(), pagaPor:deleteField()
-    });
-    trocarAba('cmd',document.getElementById('aba-cmd'));
-  }, `Comanda de ${cli} reaberta!`, 'reabrir comanda');
+    }),
+    `Comanda de ${cli} reaberta!`,
+    'reabrir comanda'
+  );
+  trocarAba('cmd',document.getElementById('aba-cmd'));
 }
 
 /* ══ FECHAMENTO ═══════════════════════════════════════════ */
