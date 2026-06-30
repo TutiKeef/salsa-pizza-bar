@@ -49,6 +49,27 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
 .pb{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;padding:5px 14px;border-radius:20px;cursor:pointer;transition:all .15s;}
 .pb.on{border-color:var(--orange);color:var(--orange);background:#2a1500;}
 
+/* Aviso do dia */
+.aviso-card{background:var(--s1);border:1px solid var(--orange);border-radius:12px;
+  padding:16px 18px;margin-bottom:20px;}
+.aviso-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.aviso-tit{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--orange);}
+.aviso-status{font-size:11px;color:var(--muted);}
+.aviso-status.ativo{color:var(--green);}
+.aviso-body{display:flex;gap:8px;flex-wrap:wrap;}
+.aviso-body input{flex:1;min-width:200px;background:var(--s2);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;color:var(--cream);font-family:'DM Sans',sans-serif;
+  font-size:14px;outline:none;transition:border-color .2s;}
+.aviso-body input:focus{border-color:var(--orange);}
+.aviso-btn{background:var(--fire);border:none;border-radius:8px;color:#0f0d0b;
+  font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:10px 18px;
+  cursor:pointer;white-space:nowrap;}
+.aviso-btn-limpar{background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 16px;
+  cursor:pointer;white-space:nowrap;transition:all .15s;}
+.aviso-btn-limpar:hover{border-color:var(--red);color:var(--red);}
+.aviso-hint{font-size:11px;color:var(--muted);margin-top:8px;}
+
 /* KPIs topo */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
 .kpi{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
@@ -245,6 +266,20 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
       <p>Análise de performance, vendas e percepções da equipe</p>
     </div>
 
+    <!-- Aviso do dia — aparece no app da equipe enquanto o caixa estiver aberto -->
+    <div class="aviso-card" id="aviso-card" style="display:none">
+      <div class="aviso-hd">
+        <span class="aviso-tit">📌 Aviso do dia</span>
+        <span class="aviso-status" id="aviso-status"></span>
+      </div>
+      <div class="aviso-body">
+        <input type="text" id="aviso-input" placeholder="Ex: Pizza Marguerita sem manjericão hoje" maxlength="200" autocomplete="off"/>
+        <button class="aviso-btn" id="aviso-salvar">Salvar</button>
+        <button class="aviso-btn-limpar" id="aviso-limpar">Remover</button>
+      </div>
+      <div class="aviso-hint">A equipe vê esse aviso no topo do app enquanto o caixa estiver aberto.</div>
+    </div>
+
     <div class="fp">
       <span class="fp-t">Período:</span>
       <button class="pb on" id="dp-4">Últimos 4 finais de semana</button>
@@ -255,6 +290,7 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
 
     <!-- KPIs -->
     <div class="kpi-grid" id="kpi-grid"></div>
+
 
     <!-- Linha 1: Faturamento + Pizza vs Bar -->
     <div class="charts-grid">
@@ -402,8 +438,8 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
 
 <script type="module">
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc,
-         collection, query, where, orderBy, getDocs, serverTimestamp, Timestamp }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField,
+         collection, query, where, orderBy, getDocs, serverTimestamp, Timestamp, limit }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FB={
@@ -450,6 +486,7 @@ function login(){
     document.getElementById('main').style.display='';
     initNav();
     carregarDashboard();
+    initAviso();
   } else {
     document.getElementById('login-err').textContent='Senha incorreta';
     document.getElementById('inp-senha').value='';
@@ -494,6 +531,59 @@ function initNav(){
     });
   });
 }
+
+/* ══ AVISO DO DIA ═══════════════════════════════════════════
+   Mostra/edita o aviso da sessão ABERTA atual (se existir).
+   A equipe vê esse texto no topo do app em tempo real, e pode
+   dispensar — mas o admin pode editar ou remover a qualquer
+   momento enquanto o caixa estiver aberto.
+═══════════════════════════════════════════════════════════ */
+let _avisoSid=null, _unsubAviso=null;
+
+function initAviso(){
+  if(_unsubAviso) _unsubAviso();
+  const card=document.getElementById('aviso-card');
+  const status=document.getElementById('aviso-status');
+  const input=document.getElementById('aviso-input');
+
+  // Busca a sessão aberta mais recente
+  const q=query(collection(db,'sessoes'), where('status','==','aberto'), limit(1));
+  _unsubAviso=onSnapshot(q, snap=>{
+    if(snap.empty){
+      card.style.display='none';
+      _avisoSid=null;
+      return;
+    }
+    const sdoc=snap.docs[0].data();
+    _avisoSid=snap.docs[0].id;
+    card.style.display='block';
+    if(document.activeElement!==input) input.value=sdoc.aviso||'';
+    if(sdoc.aviso){
+      status.textContent='Ativo — visível pra equipe';
+      status.classList.add('ativo');
+    } else {
+      status.textContent='Nenhum aviso ativo';
+      status.classList.remove('ativo');
+    }
+  });
+}
+
+document.getElementById('aviso-salvar').addEventListener('click', async ()=>{
+  if(!_avisoSid) return;
+  const texto=document.getElementById('aviso-input').value.trim();
+  try{
+    await updateDoc(doc(db,'sessoes',_avisoSid),{ aviso: texto || deleteField(), avisoEm: serverTimestamp() });
+    toast(texto?'Aviso salvo!':'Aviso removido');
+  }catch(e){ toast('Erro: '+e.message); }
+});
+document.getElementById('aviso-limpar').addEventListener('click', async ()=>{
+  if(!_avisoSid) return;
+  document.getElementById('aviso-input').value='';
+  try{
+    await updateDoc(doc(db,'sessoes',_avisoSid),{ aviso: deleteField() });
+    toast('Aviso removido');
+  }catch(e){ toast('Erro: '+e.message); }
+});
 
 /* ══ DASHBOARD ════════════════════════════════════════════
    Como o bar opera só qui/sex/sáb, "30 dias" não diz nada —
@@ -779,8 +869,15 @@ function renderDashboard(sessoesPeriodo, comandas, todasSessoes){
   }).join('');
 }
 
-/* ══ CALENDÁRIO ═══════════════════════════════════════════ */
-let ano,mes,sessoes={};
+/* ══ CALENDÁRIO ═══════════════════════════════════════════
+   sessoes é indexado por DATA (campo 'data' da sessão),
+   não pelo ID do documento (que agora é UUID gerado pelo Firestore).
+   Para cada dia do calendário buscamos sessoes[key] onde key='YYYY-MM-DD'.
+   sessoesIdPorData guarda o ID do documento para buscar comandas.
+═══════════════════════════════════════════════════════════ */
+let ano,mes;
+let sessoes={};       // { 'YYYY-MM-DD': dadosDaSessao }
+let sessaoIds={};     // { 'YYYY-MM-DD': idDoDocumento }
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function initCalendario(){
@@ -798,17 +895,30 @@ function navMes(d){
 async function carregarCalendario(){
   if(!ano){initCalendario();}
   document.getElementById('cal-label').textContent=`${MESES[mes]} ${ano}`;
-  renderCal({});
+  renderCal();
   const ini=`${ano}-${String(mes+1).padStart(2,'0')}-01`;
   const fim=`${ano}-${String(mes+1).padStart(2,'0')}-31`;
   try{
-    const snap=await getDocs(query(collection(db,'sessoes'),where('data','>=',ini),where('data','<=',fim)));
-    sessoes={}; snap.docs.forEach(d=>{sessoes[d.id]=d.data();});
-  }catch(e){console.error(e);}
-  renderCal(sessoes);
+    const snap=await getDocs(query(
+      collection(db,'sessoes'),
+      where('data','>=',ini),
+      where('data','<=',fim)
+    ));
+    sessoes={};
+    sessaoIds={};
+    snap.docs.forEach(d=>{
+      const data=d.data();
+      const dataKey=data.data; // campo 'data' = 'YYYY-MM-DD'
+      if(dataKey){
+        sessoes[dataKey]=data;
+        sessaoIds[dataKey]=d.id; // ID do documento (UUID)
+      }
+    });
+  }catch(e){console.error('carregarCalendario:',e);}
+  renderCal();
 }
 
-function renderCal(s){
+function renderCal(){
   const hj=new Date().toISOString().slice(0,10);
   const total=new Date(ano,mes+1,0).getDate();
   const primeiro=new Date(ano,mes,1).getDay();
@@ -817,14 +927,13 @@ function renderCal(s){
   for(let i=0;i<primeiro;i++) html+=`<div class="cd vz"></div>`;
   for(let d=1;d<=total;d++){
     const key=`${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const s2=s[key];
-    let cls='cd'; let dot='';
-    if(s2){
-      cls+=' clicavel';
-      dot=`<div class="cddot ${s2.status}"></div>`;
-    } else cls+=' sd';
+    const s=sessoes[key];
+    let cls='cd';
+    if(s){ cls+=' clicavel'; }
+    else { cls+=' sd'; }
     if(key===hj) cls+=' hj';
-    const fat=s2?.totalFaturado?`<span class="cd-fat">R$${s2.totalFaturado.toFixed(0)}</span>`:'';
+    const dot=s?`<div class="cddot ${s.status}"></div>`:'';
+    const fat=s?.totalFaturado?`<span class="cd-fat">R$${s.totalFaturado.toFixed(0)}</span>`:'';
     html+=`<div class="${cls}" data-key="${key}"><span class="cdnum">${d}</span>${dot}${fat}</div>`;
   }
   document.getElementById('cgrid').innerHTML=html;
@@ -837,13 +946,16 @@ function renderCal(s){
   });
 }
 
-async function verDia(data){
-  const s=sessoes[data]; if(!s) return;
+async function verDia(dataKey){
+  const s=sessoes[dataKey];
+  if(!s) return;
+  const sessaoId=sessaoIds[dataKey]; // UUID do documento
   let cmds=[];
   try{
-    const snap=await getDocs(query(collection(db,'comandas'),where('sessaoId','==',data)));
+    // Busca por sessaoId (UUID) — não pela data
+    const snap=await getDocs(query(collection(db,'comandas'),where('sessaoId','==',sessaoId)));
     cmds=snap.docs.map(d=>d.data());
-  }catch(e){}
+  }catch(e){ console.error('verDia:',e); }
 
   const total=cmds.filter(c=>c.status==='paga').reduce((a,c)=>a+(c.total||0),0);
   const n=cmds.length, npago=cmds.filter(c=>c.status==='paga').length;
