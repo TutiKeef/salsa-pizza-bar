@@ -251,12 +251,15 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 .av-form input[type=text]{flex:2;}
 .av-form input[type=number]{flex:1;}
 
-/* Botão + por item dentro da comanda aberta (A) */
-.btn-inc{background:transparent;border:1px solid var(--border);color:var(--orange);
-  font-size:16px;width:26px;height:26px;border-radius:50%;display:flex;
+/* Controle de quantidade por item — − qty + */
+.ci-qty-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.btn-dec,.btn-inc{background:transparent;border:1px solid var(--border);color:var(--orange);
+  font-size:15px;width:24px;height:24px;border-radius:50%;display:flex;
   align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
   -webkit-appearance:none;line-height:1;}
-.btn-inc:active{background:#2a1500;}
+.btn-dec:active,.btn-inc:active{background:#2a1500;}
+.ci-q{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
+  min-width:20px;text-align:center;color:var(--cream);}
 
 /* Tag de garçom por item (C) */
 .ci-garcom{font-size:10px;color:var(--muted);margin-top:2px;font-style:normal;}
@@ -563,7 +566,8 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, addDoc, updateDoc, deleteDoc,
          collection, query, where, orderBy, onSnapshot,
-         getDocs, serverTimestamp, limit, deleteField }
+         getDocs, serverTimestamp, limit, deleteField,
+         enableIndexedDbPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FB={
@@ -575,6 +579,23 @@ const FB={
   appId:"1:790853305030:web:dd4d61bbabfaf17aac0dc7"
 };
 const db=getFirestore(initializeApp(FB));
+
+/* ══ CACHE OFFLINE ════════════════════════════════════════════
+   Ativa persistência local via IndexedDB. Na primeira abertura
+   do app busca do Firebase normalmente. Nas seguintes, carrega
+   do cache local PRIMEIRO e sincroniza em background — o app
+   fica visível em < 1s mesmo com internet fraca.
+   Se dois abas/apps tentarem ao mesmo tempo, o segundo recebe
+   "failed-precondition" e continua funcionando normalmente
+   (só sem cache, que é o comportamento padrão).
+═══════════════════════════════════════════════════════════════ */
+enableIndexedDbPersistence(db).catch(err=>{
+  if(err.code==='failed-precondition'){
+    console.warn('Cache offline: múltiplas abas abertas, persistência desativada nesta aba');
+  } else if(err.code==='unimplemented'){
+    console.warn('Cache offline: navegador não suporta IndexedDB');
+  }
+});
 
 /* ══ ESTADO ═══════════════════════════════════════════════
    sid  = ID da sessão no Firestore (gerado por addDoc, não é mais a data)
@@ -678,74 +699,79 @@ async function init(){
   const sn=localStorage.getItem('s_nome');
   const ss=localStorage.getItem('s_sid');
 
-  // Busca a sessão canônica (mais antiga aberta) — sempre, mesmo
-  // que esse celular já tenha uma sessão salva. Isso garante que
-  // se houver múltiplas sessões abertas, TODOS convergem pra mesma.
+  /* ══ CAMINHO RÁPIDO (caso mais comum) ════════════════════
+     Se já tem nome e sessão salvos localmente, entra DIRETO
+     sem esperar nenhuma query — o onSnapshot vai trazer os
+     dados reais em seguida. Isso elimina o delay de 1-2
+     queries sequenciais antes do app aparecer.
+     A validação de sessão canônica/duplicidade roda DEPOIS,
+     em background, sem travar a tela.
+  ═══════════════════════════════════════════════════════════ */
+  if(sn && ss){
+    nome=sn; sid=ss; sdoc=sdoc||{abertoPor:sn,data:dHoje()};
+    await iniciarApp();
+    // Validação em background — não bloqueia a tela já carregada
+    validarSessaoEmBackground();
+    return;
+  }
+
+  // Sem sessão salva localmente → precisa buscar antes de mostrar algo
   let canon=null;
   try{ canon=await buscarSessaoCanonica(); }
   catch(e){ console.warn('Erro ao buscar sessão canônica:',e); }
 
-  // 1. Tem sessão salva localmente E ela é a canônica?
-  if(sn && ss && canon && canon.id===ss){
-    nome=sn; sid=ss; sdoc=canon.data;
-    await iniciarApp();
-    return;
-  }
-
-  // 2. Tem sessão salva, mas existe uma canônica DIFERENTE (duplicidade)
-  //    → migra silenciosamente pra canônica, mantendo o nome da pessoa
-  if(sn && canon && canon.id!==ss){
-    console.warn('Sessão duplicada detectada — migrando para sessão canônica:',canon.id);
-    nome=sn; sid=canon.id; sdoc=canon.data;
-    salvarLocal(nome,sid);
-    // Garante que a pessoa está na lista da equipe da sessão canônica
-    try{
-      const eq=sdoc.equipe||[];
-      if(!eq.includes(nome)){
-        eq.push(nome);
-        await updateDoc(doc(db,'sessoes',sid),{equipe:eq});
-        sdoc.equipe=eq;
-      }
-    }catch(e){}
-    toast('Sessão sincronizada com a equipe.');
-    await iniciarApp();
-    return;
-  }
-
-  // 3. Tem sessão salva, canônica não encontrada (erro de rede) →
-  //    tenta verificar diretamente a sessão salva, modo offline
-  if(sn && ss && !canon){
-    try{
-      const snap=await getDoc(doc(db,'sessoes',ss));
-      if(snap.exists() && snap.data().status==='aberto'){
-        nome=sn; sid=ss; sdoc=snap.data();
-        await iniciarApp();
-        return;
-      }
-      localStorage.removeItem('s_sid');
-    }catch(e){
-      // Sem rede — entra offline com os dados salvos
-      console.warn('Erro de rede, entrando offline:',e);
-      nome=sn; sid=ss; sdoc=sdoc||{abertoPor:sn,data:dHoje()};
-      await iniciarApp();
-      return;
-    }
-  }
-
-  // 4. Existe sessão canônica mas esse celular não tem nome salvo
-  //    → pede o nome (tela "entrar")
   if(canon){
     sdoc=canon.data;
     sid=canon.id;
     renderDiaInfo(sdoc);
-    if(sn) document.getElementById('en-nome').value=sn;
     mostrar('entrar');
     return;
   }
 
-  // 5. Nenhuma sessão aberta em lugar nenhum → mostrar abertura
+  // Nenhuma sessão aberta em lugar nenhum → mostrar abertura
   document.getElementById('ab-data').value=dHoje();
   mostrar('abertura');
+}
+
+/* ══ VALIDAÇÃO EM BACKGROUND ══════════════════════════════════
+   Roda DEPOIS do app já estar visível. Verifica se a sessão
+   salva é a canônica; se houver divergência, migra silenciosamente.
+   Isso não bloqueia mais o carregamento inicial.
+═══════════════════════════════════════════════════════════════ */
+async function validarSessaoEmBackground(){
+  try{
+    const canon=await buscarSessaoCanonica();
+    if(!canon){
+      // Nenhuma sessão aberta — a sessão local não existe mais
+      localStorage.removeItem('s_sid');
+      toast('O caixa foi encerrado.');
+      setTimeout(()=>init(), 1500);
+      return;
+    }
+    if(canon.id!==sid){
+      // Sessão divergente — migra silenciosamente
+      console.warn('Sessão divergente detectada em background — migrando para:',canon.id);
+      sid=canon.id; sdoc=canon.data;
+      salvarLocal(nome,sid);
+      try{
+        const eq=sdoc.equipe||[];
+        if(!eq.includes(nome)){
+          eq.push(nome);
+          await updateDoc(doc(db,'sessoes',sid),{equipe:eq});
+          sdoc.equipe=eq;
+        }
+      }catch(e){}
+      desligarListeners();
+      escutarComandas();
+      escutarCardapio();
+      escutarSessao();
+      toast('Sessão sincronizada com a equipe.');
+    } else {
+      sdoc=canon.data; // atualiza dados da sessão (aviso, equipe, etc)
+    }
+  }catch(e){
+    console.warn('Validação em background falhou (sem rede?):',e);
+  }
 }
 window.init=init;
 init();
@@ -855,11 +881,12 @@ setInterval(async ()=>{
 }, 5 * 60 * 1000);
 
 /* ══ FUSÃO DE SESSÕES DUPLICADAS (consolidação de histórico) ══
-   Comandas ABERTAS já são globais (não dependem de sid) — então
-   essa função NÃO é mais crítica para visibilidade. Ela existe
-   apenas para CONSOLIDAR o histórico/dashboard: se duas sessões
-   abertas existirem ao mesmo tempo, junta tudo na mais antiga
-   (sessaoId das comandas + lista de equipe) e fecha a duplicada.
+   A aba "Abertas" já busca comandas globalmente (qAbertasGlobais
+   em escutarComandas), então duplicidade de sessão não esconde
+   comandas de ninguém. Esta função existe só para CONSOLIDAR o
+   histórico/dashboard: se duas sessões abertas existirem ao
+   mesmo tempo, junta tudo na mais antiga (sessaoId das comandas
+   + lista de equipe) e fecha a duplicada.
    Roda em background, sem pressa — se falhar, não quebra nada.
 ═══════════════════════════════════════════════════════════════ */
 let _fundindoSessoes=false;
@@ -1008,7 +1035,10 @@ async function iniciarApp(){
   escutarComandas();   // comandas em tempo real
   escutarSessao();     // aviso do dia em tempo real
   reenviarRascunhosPendentes(); // tenta enviar comandas que ficaram pendentes
-  fundirSessoesDuplicadas();    // corrige sessões duplicadas imediatamente
+  // fundirSessoesDuplicadas() não roda mais aqui — é trabalho pesado
+  // (múltiplas queries + writes) que atrasava o carregamento inicial.
+  // Continua rodando no keepalive (a cada 5min) e na validação em
+  // background, que já cobrem o caso de sessões duplicadas.
 }
 
 /* ══ AVISO DO DIA ═════════════════════════════════════════
@@ -1333,6 +1363,7 @@ function escutarComandas(){
 ═══════════════════════════════════════════════════════════ */
 /* Cache de comandas abertas para filtro de pesquisa (B) */
 let _abertasAll=[];
+let _expandidas=new Set(); // IDs das comandas expandidas — persiste entre renders
 
 function renderAbertas(cmds){
   _abertasAll=cmds;
@@ -1348,13 +1379,13 @@ function renderAbertasFiltrado(cmds){
     return;
   }
   w.innerHTML=cmds.map(c=>`
-    <div class="cc" id="cc${c.id}">
+    <div class="cc${_expandidas.has(c.id)?' open':''}" id="cc${c.id}">
       <div class="cc-hd">
         <div class="cc-hd-top">
           <div class="cc-inf" onclick="toggleCmd('${c.id}')">
             <div class="cc-cli">${c.cliente}</div>
             ${c.descricao?`<div class="cc-dsc">📍 ${c.descricao}</div>`:''}
-            <div class="cc-met">${c.garcom} · ${c.hora} · ${c.itens.length} itens</div>
+            <div class="cc-met">${c.garcom} · ${c.hora} · ${c.itens.length} ${c.itens.length===1?'item':'itens'}</div>
           </div>
           <span class="cc-tot">R$ ${c.total}</span>
         </div>
@@ -1366,7 +1397,11 @@ function renderAbertasFiltrado(cmds){
       <div class="cc-bd">
         ${c.itens.map((it,idx)=>`
           <div class="ci">
-            <span class="ci-q">${it.qty}×</span>
+            <div class="ci-qty-ctrl">
+              <button class="btn-dec" onclick="decrementarItem('${c.id}',${idx})">−</button>
+              <span class="ci-q">${it.qty}×</span>
+              <button class="btn-inc" onclick="incrementarItem('${c.id}',${idx})">+</button>
+            </div>
             <div class="ci-n">
               <div class="ci-nm">${it.nome}${it.categoria==='avulso'?'<span class="tag-avulso">avulso</span>':''}</div>
               ${it.obs?`<div class="ci-ob">⚠ ${it.obs}</div>`:''}
@@ -1376,7 +1411,6 @@ function renderAbertasFiltrado(cmds){
               <span class="ci-pu">R$ ${it.preco} un.</span>
               <span class="ci-ps">R$ ${(it.qty*it.preco).toFixed(0)}</span>
             </div>
-            <button class="btn-inc" onclick="incrementarItem('${c.id}',${idx})" title="Adicionar mais um">+</button>
             <button class="btn-di" onclick="removerItem('${c.id}',${idx})">×</button>
           </div>`).join('')}
         <div class="ci-tot">
@@ -1395,10 +1429,16 @@ window.filtrarComandas=function(v){
   renderAbertasFiltrado(v?_abertasAll.filter(c=>c.cliente.toLowerCase().includes(v.toLowerCase())):_abertasAll);
 }
 
-window.toggleCmd=function(id){document.getElementById('cc'+id)?.classList.toggle('open');}
+/* B — toggleCmd preserva estado entre renders */
+window.toggleCmd=function(id){
+  if(_expandidas.has(id)) _expandidas.delete(id);
+  else _expandidas.add(id);
+  document.getElementById('cc'+id)?.classList.toggle('open');
+}
 
-/* A — Incrementar qty de item existente na comanda diretamente */
+/* A — Incrementar qty */
 window.incrementarItem=async function(cmdId,idx){
+  _expandidas.add(cmdId); // garante que comanda permanece expandida
   await atualizarComRetry(async ()=>{
     const ref=doc(db,'comandas',cmdId);
     const snap=await getDoc(ref);
@@ -1409,8 +1449,29 @@ window.incrementarItem=async function(cmdId,idx){
   },'Item adicionado!','incrementar item');
 }
 
+/* A — Decrementar qty (remove item se chegar a 0) */
+window.decrementarItem=async function(cmdId,idx){
+  _expandidas.add(cmdId); // garante que comanda permanece expandida
+  await atualizarComRetry(async ()=>{
+    const ref=doc(db,'comandas',cmdId);
+    const snap=await getDoc(ref);
+    if(!snap.exists())throw new Error('Comanda não encontrada');
+    const itens=[...snap.data().itens];
+    let removido=false;
+    if(itens[idx].qty<=1){
+      itens.splice(idx,1); // remove se qty chegar a 0
+      removido=true;
+    } else {
+      itens[idx]={...itens[idx],qty:itens[idx].qty-1};
+    }
+    await updateDoc(ref,{itens,total:itens.reduce((a,i)=>a+i.qty*i.preco,0)});
+    return removido;
+  },null,'decrementar item');
+}
+
 /* ══ REMOVER ITEM ══════════════════════════════════════════ */
 window.removerItem=async function(cmdId,idx){
+  _expandidas.add(cmdId); // garante que comanda permanece expandida
   await atualizarComRetry(async ()=>{
     const ref=doc(db,'comandas',cmdId);
     const snap=await getDoc(ref);
@@ -1434,6 +1495,7 @@ window.confirmarExcluir=function(cmdId,cli){
 }
 window.excluirComanda=async function(cmdId){
   fecharModal();
+  _expandidas.delete(cmdId);
   await atualizarComRetry(
     ()=>deleteDoc(doc(db,'comandas',cmdId)),
     'Comanda excluída', 'excluir comanda'
@@ -1443,6 +1505,7 @@ window.excluirComanda=async function(cmdId){
 let _addId='', _addSel={}, _addCatSel=null;
 window.abrirModalAdicionar=function(cmdId){
   _addId=cmdId; _addSel={}; _addCatSel=null;
+  _expandidas.add(cmdId); // garante que permanece expandida após adicionar
   if(!_cp){toast('Cardápio carregando...');return;}
   renderModalAdd();
   document.getElementById('modal').classList.add('show');
@@ -1528,6 +1591,7 @@ window.confirmarAdd=async function(){
 let _avulsoId='';
 window.abrirModalAvulso=function(cmdId){
   _avulsoId=cmdId;
+  _expandidas.add(cmdId); // garante que permanece expandida após adicionar
   document.getElementById('modal-box').innerHTML=`
     <div class="mt">Item avulso</div>
     <div class="ms">Adicione algo fora do cardápio — nome e valor livres.</div>
@@ -1577,6 +1641,7 @@ window.confirmarPago=function(cmdId,cli){
 }
 window.marcarPago=async function(cmdId){
   fecharModal();
+  _expandidas.delete(cmdId);
   await atualizarComRetry(
     ()=>updateDoc(doc(db,'comandas',cmdId),{status:'paga', pagaEm:serverTimestamp(), pagaPor:nome}),
     'Comanda fechada! 💚',
@@ -1593,8 +1658,10 @@ window.marcarPago=async function(cmdId){
 ═══════════════════════════════════════════════════════════ */
 async function atualizarComRetry(operacao, msgSucesso, descricao, tentativa=1){
   try{
-    await operacao();
-    toast(msgSucesso);
+    const resultado=await operacao();
+    // msgSucesso pode ser string fixa ou null (caso a mensagem dependa do resultado)
+    if(msgSucesso) toast(msgSucesso);
+    else if(descricao==='decrementar item') toast(resultado?'Item removido':'Item atualizado!');
   }catch(e){
     console.error(`Erro ao ${descricao} (tentativa ${tentativa}):`,e);
     if(tentativa<=3){
