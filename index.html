@@ -251,6 +251,21 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 .av-form input[type=text]{flex:2;}
 .av-form input[type=number]{flex:1;}
 
+/* Botão ocultar comanda */
+.cc-pend{width:100%;padding:9px;background:transparent;border:1px solid var(--amber);
+  border-radius:8px;color:var(--amber);font-family:'DM Sans',sans-serif;
+  font-size:12px;cursor:pointer;margin-top:6px;text-align:center;-webkit-appearance:none;}
+.cc-pend:active{background:#2a1f00;}
+
+/* Separador e card de comanda oculta */
+.pend-sep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--amber);padding:16px 0 6px;text-align:center;opacity:.7;}
+.cc-oculta .cc-hd{background:#1a1500 !important;}
+.btn-mostrar{background:transparent;border:1px solid var(--amber);color:var(--amber);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:5px 12px;border-radius:6px;cursor:pointer;-webkit-appearance:none;
+  flex-shrink:0;white-space:nowrap;}
+
 /* Controle de quantidade por item — − qty + */
 .ci-qty-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0;}
 .btn-dec,.btn-inc{background:transparent;border:1px solid var(--border);color:var(--orange);
@@ -452,7 +467,7 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
     <button class="aviso-banner-x" id="aviso-banner-x">×</button>
   </div>
   <div class="abas">
-    <button class="aba on" id="aba-cmd"  onclick="trocarAba('cmd',this)">
+    <button class="aba on" id="aba-cmd" onclick="trocarAba('cmd',this)">
       Abertas <span class="bdg" id="bdg" style="display:none"></span>
     </button>
     <button class="aba" id="aba-hist" onclick="trocarAba('hist',this)">Fechadas</button>
@@ -809,38 +824,31 @@ document.addEventListener('visibilitychange', async ()=>{
   if(document.visibilityState !== 'visible') return;
   clearTimeout(_visTimer);
   _visTimer = setTimeout(async ()=>{
-    if(!sid || !nome){
-      // Não tem sessão em memória — pode ter sido morta pelo iOS
-      init();
-      return;
-    }
-    // Tem sessão em memória — verifica se ainda está aberta no Firestore
-    // (importante: a virada de meia-noite não fecha a sessão, mas
-    //  alguém pode ter fechado o caixa em outro celular)
-    try{
-      const snap = await getDoc(doc(db,'sessoes',sid));
-      if(snap.exists() && snap.data().status === 'aberto'){
-        // Sessão ainda aberta — atualiza sdoc e reconecta listeners
-        sdoc = snap.data();
-        desligarListeners();
-        escutarComandas();
-        escutarCardapio();
-        escutarSessao();
-        renderAvisoBanner(sdoc.aviso||'');
-      } else {
-        // Sessão foi fechada ou não existe mais
-        localStorage.removeItem('s_sid');
-        init();
+    if(!sid || !nome){ init(); return; }
+
+    // Só reconecta listeners se tiverem caído — evita destruir e recriar
+    // toda vez que a tela acende (causa principal da lentidão)
+    if(!unsubCmd || !unsubCP || !unsubSessao){
+      try{
+        const snap=await getDoc(doc(db,'sessoes',sid));
+        if(snap.exists() && snap.data().status==='aberto'){
+          sdoc=snap.data();
+          if(!unsubCmd) escutarComandas();
+          if(!unsubCP)  escutarCardapio();
+          if(!unsubSessao) escutarSessao();
+          renderAvisoBanner(sdoc.aviso||'');
+        } else {
+          localStorage.removeItem('s_sid');
+          init();
+        }
+      }catch(e){
+        console.warn('visibilitychange offline, reconectando listeners caídos');
+        if(!unsubCmd) escutarComandas();
+        if(!unsubCP)  escutarCardapio();
+        if(!unsubSessao) escutarSessao();
       }
-    } catch(e){
-      // Sem internet — reconecta os listeners que já temos
-      // Se tiver cache offline do Firestore, vai funcionar
-      console.warn('Revalidação offline, reconectando listeners:', e.message);
-      desligarListeners();
-      escutarComandas();
-      escutarCardapio();
-      escutarSessao();
     }
+    // Se todos os listeners estão vivos, não faz nada — Firebase já sincroniza sozinho
   }, 400);
 });
 
@@ -1296,89 +1304,66 @@ let _sessaoCache=[], _globaisCache=[];
 function escutarComandas(){
   if(unsubCmd) unsubCmd();
   unsubCmd=null;
-  // Cancela qualquer reconexão pendente — evita múltiplas
-  // chamadas se keepalive/pageshow chamarem junto
   if(_reconectarTimer){ clearTimeout(_reconectarTimer); _reconectarTimer=null; }
   _recontando=false;
   if(!sid) return;
 
-  const q=query(collection(db,'comandas'),where('sessaoId','==',sid));
-  const qAbertasGlobais=query(collection(db,'comandas'),where('status','==','aberta'));
+  // Duas queries simples — sem 'in', sem índice composto
+  const qSessao  = query(collection(db,'comandas'), where('sessaoId','==',sid));
+  const qAbertas = query(collection(db,'comandas'), where('status','==','aberta'));
 
   const renderTudo=()=>{
-    const todasAbertas=[..._globaisCache];
+    const abertas=[..._globaisCache];
+    const visiveis=abertas.filter(c=>!c.oculta);
+    const ocultas =abertas.filter(c=>c.oculta);
     const fechadas=_sessaoCache.filter(c=>c.status==='paga');
-    renderAbertas(todasAbertas.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0)));
+    renderAbertas(visiveis.sort((a,b)=>(b.criadaEm?.seconds||0)-(a.criadaEm?.seconds||0)), ocultas);
     renderHistorico(fechadas.sort((a,b)=>(b.pagaEm?.seconds||0)-(a.pagaEm?.seconds||0)));
     const bdg=document.getElementById('bdg');
-    if(bdg){
-      bdg.textContent=todasAbertas.length;
-      bdg.style.display=todasAbertas.length>0?'inline-flex':'none';
-    }
+    if(bdg){ bdg.textContent=visiveis.length; bdg.style.display=visiveis.length>0?'inline-flex':'none'; }
   };
 
   const tentarReconectar=()=>{
     if(_recontando) return;
-    _recontando=true;
-    _reconectarTentativas++;
-    // Toast só na primeira falha — sem spam
+    _recontando=true; _reconectarTentativas++;
     if(_reconectarTentativas===1) toast('Sem conexão — tentando reconectar...');
-    const delay=Math.min(5000*_reconectarTentativas, 30000);
     _reconectarTimer=setTimeout(()=>{
-      _reconectarTimer=null;
-      _recontando=false;
+      _reconectarTimer=null; _recontando=false;
       if(sid && nome) escutarComandas();
-    }, delay);
+    }, Math.min(5000*_reconectarTentativas,30000));
   };
 
-  const unsubS=onSnapshot(q, snap=>{
-    _reconectarTentativas=0;
-    _recontando=false;
+  const unsubS=onSnapshot(qSessao, snap=>{
+    _reconectarTentativas=0; _recontando=false;
     if(_reconectarTimer){ clearTimeout(_reconectarTimer); _reconectarTimer=null; }
     _sessaoCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTudo();
-  }, err=>{
-    console.error('onSnapshot sessão:',err);
-    unsubCmd=null;
-    tentarReconectar();
-  });
+  }, err=>{ console.error('onSnapshot sessão:',err); unsubCmd=null; tentarReconectar(); });
 
-  const unsubG=onSnapshot(qAbertasGlobais, snap=>{
+  const unsubA=onSnapshot(qAbertas, snap=>{
     _globaisCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTudo();
-  }, err=>{
-    // Se a query global falhar, usa fallback das comandas da sessão
-    // sem disparar nova reconexão (evita duplo toast)
-    console.warn('onSnapshot globais falhou, usando fallback da sessão');
-    _globaisCache=_sessaoCache.filter(c=>c.status==='aberta');
-    renderTudo();
-  });
+  }, err=>{ console.warn('onSnapshot abertas falhou'); });
 
-  unsubCmd=()=>{ unsubS(); unsubG(); };
+  unsubCmd=()=>{ unsubS(); unsubA(); };
 }
 
 /* ══ RENDER COMANDAS ABERTAS — preços discriminados ═══════
    Header: cliente/desc/meta + total acima
    Ações: Editar (esquerda) e Pago (direita), lado a lado
 ═══════════════════════════════════════════════════════════ */
-/* Cache de comandas abertas para filtro de pesquisa (B) */
 let _abertasAll=[];
-let _expandidas=new Set(); // IDs das comandas expandidas — persiste entre renders
+let _expandidas=new Set();
 
-function renderAbertas(cmds){
-  _abertasAll=cmds;
-  const filtro=document.getElementById('search-cmd')?.value||'';
-  renderAbertasFiltrado(filtro?cmds.filter(c=>c.cliente.toLowerCase().includes(filtro.toLowerCase())):cmds);
-}
-
-function renderAbertasFiltrado(cmds){
+function renderAbertas(visiveis, ocultas){
+  _abertasAll=visiveis; // para pesquisa
   const w=document.getElementById('lista-cmd');
   if(!w)return;
-  if(!cmds.length){
-    w.innerHTML='<div class="vz">Nenhuma comanda aberta.<br>Toque no botão + para criar!</div>';
-    return;
-  }
-  w.innerHTML=cmds.map(c=>`
+
+  const filtro=document.getElementById('search-cmd')?.value||'';
+  const filtradas=filtro?visiveis.filter(c=>c.cliente.toLowerCase().includes(filtro.toLowerCase())):visiveis;
+
+  const renderCard=(c)=>`
     <div class="cc${_expandidas.has(c.id)?' open':''}" id="cc${c.id}">
       <div class="cc-hd">
         <div class="cc-hd-top">
@@ -1419,14 +1404,57 @@ function renderAbertasFiltrado(cmds){
         </div>
         <button class="cc-add" onclick="abrirModalAdicionar('${c.id}')">+ Adicionar itens do cardápio</button>
         <button class="cc-avulso" onclick="abrirModalAvulso('${c.id}')">+ Item avulso (nome e valor livres)</button>
+        <button class="cc-pend" onclick="ocultarComanda('${c.id}')">⏳ Ocultar — cliente saiu sem pagar</button>
         <button class="cc-del" onclick="confirmarExcluir('${c.id}','${esc(c.cliente)}')">🗑 Excluir comanda</button>
       </div>
-    </div>`).join('');
+    </div>`;
+
+  const renderCardOculto=(c)=>`
+    <div class="cc cc-oculta" id="cc${c.id}">
+      <div class="cc-hd" style="background:#1a1500;border-color:var(--amber)">
+        <div class="cc-hd-top">
+          <div class="cc-inf" onclick="toggleCmd('${c.id}')">
+            <div class="cc-cli" style="opacity:.7">${c.cliente}</div>
+            <div class="cc-met">${c.hora} · R$ ${c.total} · aguardando pagamento</div>
+          </div>
+          <button class="btn-mostrar" onclick="mostrarComanda('${c.id}')">Mostrar</button>
+        </div>
+      </div>
+    </div>`;
+
+  let html='';
+  if(!filtradas.length && !ocultas.length){
+    html='<div class="vz">Nenhuma comanda aberta.<br>Toque no botão + para criar!</div>';
+  } else {
+    html+=filtradas.map(renderCard).join('');
+    if(ocultas.length){
+      html+=`<div class="pend-sep">⏳ Aguardando pagamento (${ocultas.length})</div>`;
+      html+=ocultas.map(renderCardOculto).join('');
+    }
+  }
+  w.innerHTML=html;
 }
 
-/* B — Filtro de pesquisa */
 window.filtrarComandas=function(v){
-  renderAbertasFiltrado(v?_abertasAll.filter(c=>c.cliente.toLowerCase().includes(v.toLowerCase())):_abertasAll);
+  const filtradas=v?_abertasAll.filter(c=>c.cliente.toLowerCase().includes(v.toLowerCase())):_abertasAll;
+  // Re-renderiza com o filtro
+  const ocultas=_globaisCache.filter(c=>c.oculta);
+  renderAbertas(filtradas,ocultas);
+}
+
+window.ocultarComanda=async function(cmdId){
+  _expandidas.delete(cmdId);
+  await atualizarComRetry(
+    ()=>updateDoc(doc(db,'comandas',cmdId),{oculta:true}),
+    'Comanda ocultada','ocultar comanda'
+  );
+}
+
+window.mostrarComanda=async function(cmdId){
+  await atualizarComRetry(
+    ()=>updateDoc(doc(db,'comandas',cmdId),{oculta:deleteField()}),
+    'Comanda reativada!','reativar comanda'
+  );
 }
 
 /* B — toggleCmd preserva estado entre renders */
@@ -1746,10 +1774,7 @@ window.fecharCaixa=async function(){
   if(!document.getElementById('fech-mov').value){toast('Como foi o movimento?');return;}
   if(!nota){toast('Dê uma nota pro dia');return;}
 
-  // PROTEÇÃO: verifica se existem comandas abertas antes de fechar.
-  // Comandas abertas são GLOBAIS agora (não pertencem a uma sessão
-  // específica) — então a verificação é sobre TODAS as comandas
-  // abertas existentes, não só as desta sessão.
+  // Verifica só comandas ABERTAS (não pendentes — essas são intencionais)
   try{
     const snap=await getDocs(query(
       collection(db,'comandas'),
@@ -1776,7 +1801,7 @@ window.fecharCaixa=async function(){
 function mostrarAvisoComandasAbertas(qtd){
   const msg = qtd===null
     ? 'Não foi possível verificar as comandas abertas (sem conexão). Tem certeza que quer fechar o caixa mesmo assim?'
-    : `Ainda ${qtd===1?'há 1 comanda aberta':`há ${qtd} comandas abertas`} que não foram marcadas como pagas. Elas vão ficar perdidas dentro de uma sessão fechada.`;
+    : `Ainda ${qtd===1?'há 1 comanda aberta':`há ${qtd} comandas abertas`} que não foram marcadas como pagas.`;
   document.getElementById('modal-box').innerHTML=`
     <div class="mt">⚠ Atenção</div>
     <div class="ms">${msg}</div>
