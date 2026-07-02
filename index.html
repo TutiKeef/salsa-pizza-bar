@@ -9,9 +9,6 @@
 <meta name="theme-color" content="#0f0d0b">
 <title>Salsa Pizza Bar</title>
 
-<!-- Preload correto para ES modules -->
-<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
-<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js">
 <!-- Preconnect para domínios externos -->
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
@@ -586,48 +583,57 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 <div class="pend-badge" id="pend-badge">⚠ Enviando dados pendentes...</div>
 
 <script>
-// Registra Service Worker para cache do Firebase SDK
-// Na segunda abertura em diante, o SDK carrega do cache local
-// sem precisar de rede — elimina a lentidão de carregamento
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 </script>
 
-<script type="module">
-import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, addDoc, updateDoc, deleteDoc,
-         collection, query, where, orderBy, onSnapshot,
-         getDocs, serverTimestamp, limit, deleteField,
-         enableIndexedDbPersistence }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase carrega aqui, imediatamente antes do código que o usa -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-const FB={
+<script>
+/* ══ FIREBASE COMPAT ══════════════════════════════════════════
+   Usa a versão compat do Firebase (script normal, não ES module)
+   para evitar o bug do Safari que throttle downloads de módulos
+   ES enquanto a página está em primeiro plano.
+   A API compat é idêntica à modular, só muda como é carregada.
+═══════════════════════════════════════════════════════════════ */
+firebase.initializeApp({
   apiKey:"AIzaSyCk2hE6PcIuKXyfC4xKk6aZK2jPkzKIyHc",
   authDomain:"salsa-pizza-bar.firebaseapp.com",
   projectId:"salsa-pizza-bar",
   storageBucket:"salsa-pizza-bar.firebasestorage.app",
   messagingSenderId:"790853305030",
   appId:"1:790853305030:web:dd4d61bbabfaf17aac0dc7"
-};
-const db=getFirestore(initializeApp(FB));
-
-/* ══ CACHE OFFLINE ════════════════════════════════════════════
-   Ativa persistência local via IndexedDB. Na primeira abertura
-   do app busca do Firebase normalmente. Nas seguintes, carrega
-   do cache local PRIMEIRO e sincroniza em background — o app
-   fica visível em < 1s mesmo com internet fraca.
-   Se dois abas/apps tentarem ao mesmo tempo, o segundo recebe
-   "failed-precondition" e continua funcionando normalmente
-   (só sem cache, que é o comportamento padrão).
-═══════════════════════════════════════════════════════════════ */
-enableIndexedDbPersistence(db).catch(err=>{
-  if(err.code==='failed-precondition'){
-    console.warn('Cache offline: múltiplas abas abertas, persistência desativada nesta aba');
-  } else if(err.code==='unimplemented'){
-    console.warn('Cache offline: navegador não suporta IndexedDB');
-  }
 });
+const db=firebase.firestore();
+
+// Persistência offline — carrega do cache local na segunda abertura
+db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+  if(err.code!=='failed-precondition' && err.code!=='unimplemented')
+    console.warn('Persistência offline:',err);
+});
+
+// Atalhos para a API do Firestore compat
+const collection=(db,name)=>db.collection(name);
+const doc=(db,col,id)=>typeof col==='string'?db.collection(col).doc(id):col.doc(id);
+const query=(ref,...constraints)=>{
+  let q=ref;
+  for(const c of constraints) q=c(q);
+  return q;
+};
+const where=(f,op,v)=>q=>q.where(f,op,v);
+const orderBy=(f,dir='asc')=>q=>q.orderBy(f,dir);
+const limit=(n)=>q=>q.limit(n);
+const getDocs=(q)=>q.get();
+const getDoc=(ref)=>ref.get();
+const addDoc=(ref,data)=>ref.add(data);
+const updateDoc=(ref,data)=>ref.update(data);
+const deleteDoc=(ref)=>ref.delete();
+const onSnapshot=(q,cb,err)=>q.onSnapshot(cb,err);
+const serverTimestamp=()=>firebase.firestore.FieldValue.serverTimestamp();
+const deleteField=()=>firebase.firestore.FieldValue.delete();
 
 /* ══ ESTADO ═══════════════════════════════════════════════
    sid  = ID da sessão no Firestore (gerado por addDoc, não é mais a data)
