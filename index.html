@@ -9,9 +9,9 @@
 <meta name="theme-color" content="#0f0d0b">
 <title>Salsa Pizza Bar</title>
 
-<!-- Preload Firebase SDK — começa baixar em paralelo com o HTML -->
-<link rel="preload" as="script" crossorigin href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
-<link rel="preload" as="script" crossorigin href="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js">
+<!-- Preload correto para ES modules -->
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js">
 <!-- Preconnect para domínios externos -->
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
@@ -585,6 +585,15 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 <div id="toast"></div>
 <div class="pend-badge" id="pend-badge">⚠ Enviando dados pendentes...</div>
 
+<script>
+// Registra Service Worker para cache do Firebase SDK
+// Na segunda abertura em diante, o SDK carrega do cache local
+// sem precisar de rede — elimina a lentidão de carregamento
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+
 <script type="module">
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc, addDoc, updateDoc, deleteDoc,
@@ -716,7 +725,6 @@ async function init(){
   mostrar('loading');
   desligarListeners();
 
-  // Resetar estado para evitar dados sujos de sessão anterior
   sid=''; nome=''; sdoc=null;
   sel={}; nota=0;
   Object.keys(togs).forEach(k=>delete togs[k]);
@@ -725,36 +733,44 @@ async function init(){
   const sn=localStorage.getItem('s_nome');
   const ss=localStorage.getItem('s_sid');
 
-  /* ══ CAMINHO RÁPIDO (caso mais comum) ════════════════════
-     Se já tem nome e sessão salvos localmente, entra DIRETO
-     sem esperar nenhuma query — o onSnapshot vai trazer os
-     dados reais em seguida. Isso elimina o delay de 1-2
-     queries sequenciais antes do app aparecer.
-     A validação de sessão canônica/duplicidade roda DEPOIS,
-     em background, sem travar a tela.
-  ═══════════════════════════════════════════════════════════ */
+  // Timeout de segurança — se após 4s ainda estiver no loading,
+  // força a entrada no app com os dados locais. Isso resolve o
+  // "loading eterno" no Safari/iOS quando a rede demora no boot.
+  const safetyTimer=setTimeout(()=>{
+    if(document.getElementById('tela-loading').classList.contains('ativa')){
+      console.warn('Loading timeout — forçando entrada com dados locais');
+      if(sn && ss){
+        nome=sn; sid=ss; sdoc={abertoPor:sn,data:dHoje()};
+        iniciarApp();
+      } else {
+        document.getElementById('ab-data').value=dHoje();
+        mostrar('abertura');
+      }
+    }
+  }, 4000);
+
   if(sn && ss){
-    nome=sn; sid=ss; sdoc=sdoc||{abertoPor:sn,data:dHoje()};
-    await iniciarApp();
-    // Validação em background — não bloqueia a tela já carregada
+    // Caminho rápido: entra DIRETO sem await, não bloqueia na rede
+    nome=sn; sid=ss; sdoc={abertoPor:sn,data:dHoje()};
+    clearTimeout(safetyTimer);
+    iniciarApp(); // sem await — não bloqueia
     validarSessaoEmBackground();
     return;
   }
 
-  // Sem sessão salva localmente → precisa buscar antes de mostrar algo
+  // Sem sessão local → precisa buscar no Firebase antes de mostrar algo
   let canon=null;
   try{ canon=await buscarSessaoCanonica(); }
   catch(e){ console.warn('Erro ao buscar sessão canônica:',e); }
+  clearTimeout(safetyTimer);
 
   if(canon){
-    sdoc=canon.data;
-    sid=canon.id;
+    sdoc=canon.data; sid=canon.id;
     renderDiaInfo(sdoc);
     mostrar('entrar');
     return;
   }
 
-  // Nenhuma sessão aberta em lugar nenhum → mostrar abertura
   document.getElementById('ab-data').value=dHoje();
   mostrar('abertura');
 }
@@ -1046,19 +1062,15 @@ window.entrarSessao=async function(){
 }
 
 /* ══ INICIAR APP ══════════════════════════════════════════ */
-async function iniciarApp(){
+function iniciarApp(){
   document.getElementById('app-nm').textContent=nome.split(' ')[0];
   document.getElementById('app-av').textContent=nome[0].toUpperCase();
   mostrar('app');
-  // Prioridade 1: os dados que a garçonete precisa ver na hora
+  // Prioridade 1: comandas e cardápio — o que a garçonete precisa ver
   escutarComandas();
   escutarCardapio();
-  // Prioridade 2: aviso do dia e rascunhos — podem esperar 2s
-  // sem impacto nenhum na experiência de uso
-  setTimeout(()=>{
-    escutarSessao();
-    reenviarRascunhosPendentes();
-  }, 2000);
+  // Prioridade 2: aviso do dia e rascunhos — não bloqueiam nada
+  setTimeout(()=>{ escutarSessao(); reenviarRascunhosPendentes(); }, 2000);
 }
 
 /* ══ AVISO DO DIA ═════════════════════════════════════════
