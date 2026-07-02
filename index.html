@@ -8,7 +8,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f0d0b">
 <title>Salsa Pizza Bar</title>
+
+<!-- Preload Firebase SDK — começa baixar em paralelo com o HTML -->
+<link rel="preload" as="script" crossorigin href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
+<link rel="preload" as="script" crossorigin href="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js">
+<!-- Preconnect para domínios externos -->
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -657,13 +665,16 @@ const CPF=[
 function escutarCardapio(){
   if(unsubCP) unsubCP();
   unsubCP=null;
+  // Usa o cardápio fallback imediatamente — garçonete pode criar comanda
+  // antes mesmo do Firestore responder
+  if(!_cp){ _cp=CPF; if(document.getElementById('cp-r')) renderCP(); }
   try{
     const q=query(collection(db,'cardapio'),orderBy('ordem'));
     unsubCP=onSnapshot(q,snap=>{
       _cp = snap.empty ? CPF : snap.docs.map(d=>d.data());
       if(document.getElementById('cp-r')) renderCP();
     },()=>{
-      unsubCP=null; // marca como caído
+      unsubCP=null;
       if(!_cp){ _cp=CPF; if(document.getElementById('cp-r')) renderCP(); }
     });
   }catch(e){
@@ -1039,14 +1050,15 @@ async function iniciarApp(){
   document.getElementById('app-nm').textContent=nome.split(' ')[0];
   document.getElementById('app-av').textContent=nome[0].toUpperCase();
   mostrar('app');
-  escutarCardapio();   // cardápio em tempo real
-  escutarComandas();   // comandas em tempo real
-  escutarSessao();     // aviso do dia em tempo real
-  reenviarRascunhosPendentes(); // tenta enviar comandas que ficaram pendentes
-  // fundirSessoesDuplicadas() não roda mais aqui — é trabalho pesado
-  // (múltiplas queries + writes) que atrasava o carregamento inicial.
-  // Continua rodando no keepalive (a cada 5min) e na validação em
-  // background, que já cobrem o caso de sessões duplicadas.
+  // Prioridade 1: os dados que a garçonete precisa ver na hora
+  escutarComandas();
+  escutarCardapio();
+  // Prioridade 2: aviso do dia e rascunhos — podem esperar 2s
+  // sem impacto nenhum na experiência de uso
+  setTimeout(()=>{
+    escutarSessao();
+    reenviarRascunhosPendentes();
+  }, 2000);
 }
 
 /* ══ AVISO DO DIA ═════════════════════════════════════════
