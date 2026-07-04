@@ -10,6 +10,10 @@
 <title>Salsa Pizza Bar</title>
 
 <!-- Preconnect para domínios externos -->
+<!-- Firebase compat — carrega de forma bloqueante antes de qualquer coisa -->
+<!-- Isso garante que firebase está definido quando o código rodar -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -588,10 +592,6 @@ if('serviceWorker' in navigator){
 }
 </script>
 
-<!-- Firebase carrega aqui, imediatamente antes do código que o usa -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
 <script>
 /* ══ FIREBASE COMPAT ══════════════════════════════════════════
    Usa a versão compat do Firebase (script normal, não ES module)
@@ -615,25 +615,68 @@ db.enablePersistence({synchronizeTabs:true}).catch(err=>{
     console.warn('Persistência offline:',err);
 });
 
-// Atalhos para a API do Firestore compat
-const collection=(db,name)=>db.collection(name);
-const doc=(db,col,id)=>typeof col==='string'?db.collection(col).doc(id):col.doc(id);
-const query=(ref,...constraints)=>{
-  let q=ref;
-  for(const c of constraints) q=c(q);
+// ══ HELPERS FIREBASE COMPAT ══════════════════════════════
+// Wraps simples da API compat — sem closures complexas
+
+function collection(db, name){ return db.collection(name); }
+
+function doc(db, col, id){
+  if(typeof col === 'string') return db.collection(col).doc(id);
+  return col.doc(id); // col já é uma CollectionReference
+}
+
+function query(ref, ...constraints){
+  let q = ref;
+  for(const c of constraints) q = c(q);
   return q;
-};
-const where=(f,op,v)=>q=>q.where(f,op,v);
-const orderBy=(f,dir='asc')=>q=>q.orderBy(f,dir);
-const limit=(n)=>q=>q.limit(n);
-const getDocs=(q)=>q.get();
-const getDoc=(ref)=>ref.get();
-const addDoc=(ref,data)=>ref.add(data);
-const updateDoc=(ref,data)=>ref.update(data);
-const deleteDoc=(ref)=>ref.delete();
-const onSnapshot=(q,cb,err)=>q.onSnapshot(cb,err);
-const serverTimestamp=()=>firebase.firestore.FieldValue.serverTimestamp();
-const deleteField=()=>firebase.firestore.FieldValue.delete();
+}
+
+function where(f, op, v){ return q => q.where(f, op, v); }
+function orderBy(f, dir){ return q => q.orderBy(f, dir||'asc'); }
+function limit(n){ return q => q.limit(n); }
+
+function serverTimestamp(){ return firebase.firestore.FieldValue.serverTimestamp(); }
+function deleteField(){ return firebase.firestore.FieldValue.delete(); }
+
+// getDocs — QuerySnapshot do compat tem .docs, .empty, .size nativamente
+function getDocs(q){ return q.get(); }
+
+// getDoc — retorna objeto com .exists() como função e .data()
+async function getDoc(ref){
+  const snap = await ref.get();
+  // No compat, .exists é boolean. Criamos wrapper para compatibilidade.
+  const existsVal = snap.exists; // copia o valor agora
+  const dataVal = snap.data();   // copia os dados agora
+  return {
+    exists: function(){ return existsVal; },
+    data:   function(){ return dataVal; },
+    id:     snap.id
+  };
+}
+
+function addDoc(ref, data){ return ref.add(data); }
+function updateDoc(ref, data){ return ref.update(data); }
+function deleteDoc(ref){ return ref.delete(); }
+
+// onSnapshot — normaliza DocumentSnapshot vs QuerySnapshot
+function onSnapshot(q, cb, errCb){
+  return q.onSnapshot(function(snap){
+    if(typeof snap.exists === 'boolean'){
+      // DocumentSnapshot (onSnapshot em doc único)
+      const existsVal = snap.exists;
+      const dataVal = snap.data();
+      cb({
+        exists: function(){ return existsVal; },
+        data:   function(){ return dataVal; },
+        id:     snap.id
+      });
+    } else {
+      // QuerySnapshot — passa direto, tem .docs nativamente
+      cb(snap);
+    }
+  }, errCb || undefined);
+}
+// ═══════════════════════════════════════════════════════
 
 /* ══ ESTADO ═══════════════════════════════════════════════
    sid  = ID da sessão no Firestore (gerado por addDoc, não é mais a data)
