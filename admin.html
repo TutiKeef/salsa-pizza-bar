@@ -266,6 +266,37 @@ main{max-width:1200px;margin:0 auto;padding:24px;}
       <p>Análise de performance, vendas e percepções da equipe</p>
     </div>
 
+    <!-- Abertura de caixa — só aparece se não há sessão aberta -->
+    <div class="abertura-card" id="abertura-card" style="display:none">
+      <div class="aviso-tit" style="margin-bottom:12px">🔑 Abrir caixa</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg" style="margin:0"><label>Seu nome</label>
+          <input type="text" id="ab-nome" placeholder="Ex: Arthur" autocomplete="off" autocapitalize="words" maxlength="40"/></div>
+        <div class="fg" style="margin:0"><label>Data</label>
+          <input type="date" id="ab-data"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg" style="margin:0"><label>Expectativa</label>
+          <select id="ab-exp">
+            <option value="">Selecione...</option>
+            <option value="tranquilo">😴 Tranquilo</option>
+            <option value="normal">😊 Normal</option>
+            <option value="agitado">🔥 Agitado</option>
+            <option value="lotado">🚀 Lotado</option>
+          </select></div>
+        <div class="fg" style="margin:0"><label>Mesas disponíveis</label>
+          <input type="number" id="ab-mesas" placeholder="Ex: 12" min="1" max="99" inputmode="numeric"/></div>
+      </div>
+      <div class="fg" style="margin-bottom:8px"><label>Está chovendo?</label>
+        <div class="tg" style="margin-top:6px">
+          <button class="tgb" id="chuva-nao" onclick="togAb('chuva','nao')">☀ Não</button>
+          <button class="tgb" id="chuva-sim" onclick="togAb('chuva','sim')">🌧 Sim</button>
+        </div></div>
+      <div class="fg" style="margin-bottom:12px"><label>Observações (opcional)</label>
+        <textarea id="ab-obs" placeholder="Informações importantes..." style="margin-top:6px;resize:none;height:60px"></textarea></div>
+      <button class="aviso-btn" id="btn-abrir" onclick="abrirCaixa()" style="width:100%;padding:12px">Abrir caixa →</button>
+    </div>
+
     <!-- Aviso do dia — aparece no app da equipe enquanto o caixa estiver aberto -->
     <div class="aviso-card" id="aviso-card" style="display:none">
       <div class="aviso-hd">
@@ -532,6 +563,45 @@ function initNav(){
   });
 }
 
+/* ══ ABERTURA DE CAIXA (agora no admin) ══════════════════════
+   O admin abre o caixa pelo dashboard. A garçonete no index.html
+   nunca mais precisa abrir — entra direto informando só o nome.
+═══════════════════════════════════════════════════════════ */
+const _togAb={};
+function togAb(g,v){
+  _togAb[g]=v;
+  ['nao','sim'].forEach(x=>{
+    document.getElementById(`${g}-${x}`)?.classList.remove('on','on2');
+  });
+  document.getElementById(`${g}-${v}`)?.classList.add('on');
+}
+
+async function abrirCaixa(){
+  const n=document.getElementById('ab-nome').value.trim();
+  const d=document.getElementById('ab-data').value;
+  if(!n){ toast('Informe seu nome'); return; }
+  if(!d){ toast('Informe a data'); return; }
+  const btn=document.getElementById('btn-abrir');
+  btn.disabled=true; btn.textContent='Abrindo...';
+  try{
+    await addDoc(collection(db,'sessoes'),{
+      data:d, status:'aberto', abertoPor:n,
+      abertoEm:serverTimestamp(),
+      mesas:parseInt(document.getElementById('ab-mesas').value)||0,
+      expectativa:document.getElementById('ab-exp').value,
+      chuva:_togAb['chuva']||'nao',
+      obsAbertura:document.getElementById('ab-obs').value.trim(),
+      equipe:[n]
+    });
+    toast('Caixa aberto! A equipe já pode entrar.');
+    btn.disabled=false; btn.textContent='Abrir caixa →';
+    document.getElementById('abertura-card').style.display='none';
+  }catch(e){
+    toast('Erro ao abrir: '+e.message);
+    btn.disabled=false; btn.textContent='Abrir caixa →';
+  }
+}
+
 /* ══ AVISO DO DIA ═══════════════════════════════════════════
    Mostra/edita o aviso da sessão ABERTA atual (se existir).
    A equipe vê esse texto no topo do app em tempo real, e pode
@@ -543,17 +613,25 @@ let _avisoSid=null, _unsubAviso=null;
 function initAviso(){
   if(_unsubAviso) _unsubAviso();
   const card=document.getElementById('aviso-card');
+  const aberturaCard=document.getElementById('abertura-card');
   const status=document.getElementById('aviso-status');
   const input=document.getElementById('aviso-input');
+
+  // Preenche a data de hoje no form de abertura
+  document.getElementById('ab-data').value=new Date().toISOString().slice(0,10);
 
   // Busca a sessão aberta mais recente
   const q=query(collection(db,'sessoes'), where('status','==','aberto'), limit(1));
   _unsubAviso=onSnapshot(q, snap=>{
     if(snap.empty){
+      // Sem sessão — mostra form de abertura
       card.style.display='none';
+      aberturaCard.style.display='block';
       _avisoSid=null;
       return;
     }
+    // Com sessão — esconde form de abertura, mostra aviso
+    aberturaCard.style.display='none';
     const sdoc=snap.docs[0].data();
     _avisoSid=snap.docs[0].id;
     card.style.display='block';
