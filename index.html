@@ -6,6 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Salsa">
 <meta name="theme-color" content="#0f0d0b">
 <title>Salsa Pizza Bar</title>
 
@@ -46,8 +47,7 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
     border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
-/* FORMS */
-.wrap{padding:28px 20px 60px;max-width:480px;margin:0 auto;width:100%;}
+/* FORMS — usados na tela entrar e nos modais */
 .fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
 .fg label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;}
 .fg input,.fg select,.fg textarea{
@@ -56,58 +56,27 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
   font-size:16px;outline:none;transition:border-color .2s;width:100%;
   -webkit-appearance:none;appearance:none;
 }
-.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--orange);}
-.fg input::placeholder,.fg textarea::placeholder{color:var(--muted);}
-.fg select{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a6e65' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;
-}
-.fg select option{background:var(--s2);}
-.fg textarea{resize:none;min-height:68px;font-size:14px;}
-
-.tg{display:flex;gap:8px;}
-.tgb{flex:1;padding:10px;background:var(--s1);border:1px solid var(--border);border-radius:10px;
-     color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
-     cursor:pointer;transition:all .15s;text-align:center;-webkit-appearance:none;}
-.tgb.on {background:#2a1500;border-color:var(--orange);color:var(--orange);}
-.tgb.on2{background:#0a2a14;border-color:var(--green); color:var(--green);}
-
-.divl{height:1px;background:var(--border);margin:18px 0;position:relative;}
-.divl span{position:absolute;top:-8px;left:50%;transform:translateX(-50%);
-           background:var(--bg);padding:0 10px;font-size:10px;text-transform:uppercase;
-           letter-spacing:2px;color:var(--muted);}
+.fg input:focus{border-color:var(--orange);}
+.fg input::placeholder{color:var(--muted);}
 
 .btn-p{width:100%;padding:14px;background:var(--fire);border:none;border-radius:12px;
        color:#0f0d0b;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;
        cursor:pointer;margin-top:6px;-webkit-appearance:none;}
 .btn-p:active{opacity:.85;}
 .btn-p:disabled{opacity:.3;cursor:not-allowed;}
-.btn-s{width:100%;padding:12px;background:transparent;border:1px solid var(--border);
-       border-radius:10px;color:var(--muted);font-family:'DM Sans',sans-serif;
-       font-size:14px;cursor:pointer;margin-top:8px;-webkit-appearance:none;}
-
-/* ABERTURA */
-.ab-topo{text-align:center;margin-bottom:26px;}
-.ab-tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:3px;
-        color:var(--muted);margin-bottom:8px;}
-.ab-titulo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;
-           background:var(--fire);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
-           background-clip:text;line-height:1.1;margin-bottom:6px;}
-.ab-sub{font-size:13px;color:var(--muted);line-height:1.5;}
-.ev-x{display:none;margin-top:8px;}.ev-x.vis{display:block;}
 
 /* ENTRAR */
 #tela-entrar{background:var(--bg);align-items:center;justify-content:center;padding:24px;}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:16px;
       padding:26px 22px;width:100%;max-width:400px;margin:auto;}
-.card h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px;}
-.card p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
-.dia-box{background:var(--s2);border-radius:10px;padding:12px;margin-bottom:18px;
-         display:flex;flex-direction:column;gap:6px;}
-.dia-row{display:flex;justify-content:space-between;font-size:13px;}
-.dia-row span:first-child{color:var(--muted);}
-.dia-ev{background:#2a1500;border-radius:6px;padding:4px 10px;font-size:12px;
-        color:var(--orange);font-weight:600;text-align:center;margin-top:2px;}
+.card h2{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:4px;}
+
+.fechar-rodape{padding:16px;border-top:1px solid var(--border);flex-shrink:0;}
+.btn-fechar-caixa{width:100%;padding:14px;background:transparent;
+  border:1px solid var(--border);color:var(--muted);border-radius:10px;
+  font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;
+  -webkit-appearance:none;}
+.btn-fechar-caixa:active{border-color:var(--red);color:var(--red);}
 
 /* APP HEADER */
 #tela-app{background:var(--bg);}
@@ -121,10 +90,10 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 .av{width:26px;height:26px;background:var(--s3);border-radius:50%;display:flex;
     align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--orange);}
 .hn{font-size:12px;color:var(--muted);}
-.btn-fc{background:transparent;border:1px solid var(--border);color:var(--muted);
-        font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 10px;
-        border-radius:6px;cursor:pointer;-webkit-appearance:none;}
-.btn-fc:active{border-color:var(--red);color:var(--red);}
+.btn-outro{width:100%;padding:12px;margin-top:8px;background:transparent;
+  border:1px solid var(--border);border-radius:10px;color:var(--muted);
+  font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;
+  -webkit-appearance:none;}
 
 /* Indicador de rascunhos pendentes (comandas não sincronizadas) */
 .pend-badge{position:fixed;top:calc(8px + var(--st));left:50%;transform:translateX(-50%);
@@ -170,8 +139,6 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
     padding-bottom:calc(130px + var(--sb));}
 .sl{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;
     text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:2px 0 4px;}
-.cn{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;
-    color:var(--orange);margin:6px 0 4px;padding-left:2px;}
 
 .bar-env{position:fixed;bottom:0;left:0;right:0;background:var(--s1);
          border-top:1px solid var(--border);
@@ -317,7 +284,7 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
   padding:1px 8px;margin-top:2px;}
 .cp-cat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;
   color:var(--orange);padding:8px 0 4px;grid-column:1/-1;}
-.hw{padding:16px;display:flex;flex-direction:column;gap:8px;}
+
 .hc{background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
 .hc-hd{padding:10px 14px;background:var(--s2);display:flex;align-items:center;
         justify-content:space-between;cursor:pointer;}
@@ -325,34 +292,14 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
 .hc-mt{font-size:11px;color:var(--muted);margin-top:2px;}
 .hc-bd{display:none;padding:8px 14px 10px;flex-direction:column;gap:3px;}
 .hc.open .hc-bd{display:flex;}
-.hc-it{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);
-       font-size:12px;align-items:flex-start;}
-.hc-it:last-child{border-bottom:none;}
+
+/* HISTÓRICO */
+.hw{padding:16px;display:flex;flex-direction:column;gap:8px;}
 .hc-q{font-weight:700;color:var(--orange);min-width:22px;}
 .hc-ob{font-size:11px;color:var(--amber);font-style:italic;margin-top:1px;}
 .btn-rb{width:100%;padding:8px;background:transparent;border:1px solid var(--amber);
         border-radius:8px;color:var(--amber);font-family:'DM Sans',sans-serif;
         font-size:11px;cursor:pointer;margin-top:10px;text-align:center;-webkit-appearance:none;}
-
-/* FECHAMENTO */
-#tela-fechamento{background:var(--bg);}
-.rd{background:var(--s1);border:1px solid var(--border);border-radius:12px;
-    padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;}
-.rdr{display:flex;justify-content:space-between;align-items:center;font-size:13px;}
-.rdl{color:var(--muted);}
-.rdv{font-family:'Syne',sans-serif;font-weight:700;color:var(--amber);}
-.nw2{display:flex;gap:8px;justify-content:center;}
-.nb{width:48px;height:48px;background:var(--s1);border:1px solid var(--border);
-    border-radius:10px;color:var(--muted);font-family:'Syne',sans-serif;
-    font-size:18px;font-weight:700;cursor:pointer;-webkit-appearance:none;}
-.nb.on{background:#2a1500;border-color:var(--orange);color:var(--orange);}
-
-/* FECHADO */
-#tela-fechado{background:var(--bg);align-items:center;justify-content:center;padding:32px 20px;}
-.fi{text-align:center;max-width:320px;margin:auto;}
-.fi-ic{font-size:48px;margin-bottom:18px;}
-.fi-tt{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:8px;}
-.fi-sb{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px;}
 
 /* MODAL */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;
@@ -405,58 +352,24 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
   <div class="sp"></div>
 </div>
 
-<!-- ABERTURA DE CAIXA -->
-<div class="tela" id="tela-abertura">
-  <div class="wrap">
-    <div class="ab-topo">
-      <div class="ab-tag">Salsa Pizza Bar</div>
-      <div class="ab-titulo">Abrindo o caixa</div>
-      <div class="ab-sub">Preencha as informações do dia</div>
-    </div>
-    <div class="fg"><label>Seu nome</label>
-      <input type="text" id="ab-nome" placeholder="Ex: Ana Lima"
-        autocomplete="off" autocorrect="off" autocapitalize="words" maxlength="40"/></div>
-    <div class="fg"><label>Data de hoje</label>
-      <input type="date" id="ab-data"/></div>
-    <div class="fg"><label>Mesas disponíveis</label>
-      <input type="number" id="ab-mesas" placeholder="Ex: 12" min="1" max="99" inputmode="numeric"/></div>
-    <div class="divl"><span>contexto do dia</span></div>
-    <div class="fg"><label>Está chovendo?</label>
-      <div class="tg">
-        <button class="tgb" id="chuva-nao" onclick="tog('chuva','nao')">☀ Não</button>
-        <button class="tgb" id="chuva-sim" onclick="tog('chuva','sim')">🌧 Sim</button>
-      </div></div>
-    <div class="fg"><label>É dia de evento?</label>
-      <div class="tg">
-        <button class="tgb" id="evento-nao" onclick="tog('evento','nao')">Não</button>
-        <button class="tgb" id="evento-sim" onclick="tog('evento','sim')">🎉 Sim</button>
-      </div>
-      <div class="ev-x" id="ev-x">
-        <input type="text" id="ev-nm" placeholder="Qual evento?" style="margin-top:8px" autocorrect="off"/></div></div>
-    <div class="fg"><label>Expectativa pro dia</label>
-      <select id="ab-exp">
-        <option value="">Selecione...</option>
-        <option value="tranquilo">😴 Tranquilo</option>
-        <option value="normal">😊 Normal</option>
-        <option value="agitado">🔥 Agitado</option>
-        <option value="lotado">🚀 Lotado</option>
-      </select></div>
-    <div class="fg"><label>Observações (opcional)</label>
-      <textarea id="ab-obs" placeholder="Informações importantes..."></textarea></div>
-    <button class="btn-p" id="btn-abrir" onclick="abrirCaixa()">Abrir caixa →</button>
-  </div>
-</div>
-
-<!-- ENTRAR EM SESSÃO EXISTENTE -->
+<!-- ENTRAR -->
 <div class="tela" id="tela-entrar">
-  <div class="card">
-    <h2>Bem-vinda! 👋</h2>
-    <p>O caixa já está aberto. Informe seu nome para entrar.</p>
-    <div class="dia-box" id="dia-box"></div>
-    <div class="fg"><label>Seu nome</label>
-      <input type="text" id="en-nome" placeholder="Ex: Bruna Costa"
-        autocomplete="off" autocorrect="off" autocapitalize="words" maxlength="40"/></div>
-    <button class="btn-p" onclick="entrarSessao()">Entrar →</button>
+  <div class="card" style="text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🍕</div>
+    <h2 style="margin-bottom:4px">Salsa Pizza Bar</h2>
+    <p style="color:var(--muted);margin-bottom:24px">Qual é o seu nome?</p>
+    <div id="en-rapido" style="display:none">
+      <button class="btn-p" id="btn-rapido" onclick="entrarSessao()">Entrar →</button>
+      <button class="btn-outro" onclick="trocarNome()">Não sou eu</button>
+    </div>
+    <div id="en-form">
+      <div class="fg" style="text-align:left">
+        <input type="text" id="en-nome" placeholder="Ex: Bruna Costa"
+          autocomplete="off" autocorrect="off" autocapitalize="words" maxlength="40"
+          onkeydown="if(event.key==='Enter')entrarSessao()"/>
+      </div>
+      <button class="btn-p" onclick="entrarSessao()">Entrar →</button>
+    </div>
   </div>
 </div>
 
@@ -467,7 +380,6 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
     <div class="hdr">
       <div class="av" id="app-av"></div>
       <span class="hn" id="app-nm"></span>
-      <button class="btn-fc" onclick="irFechamento()">Fechar caixa</button>
     </div>
   </div>
   <div class="aviso-banner" id="aviso-banner" style="display:none">
@@ -517,68 +429,12 @@ body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;
     <div class="hw" id="lista-hist">
       <div class="vz">Nenhuma comanda fechada neste turno.</div>
     </div>
-  </div>
-</div>
-
-<!-- FECHAMENTO -->
-<div class="tela" id="tela-fechamento">
-  <div class="wrap">
-    <div class="ab-topo" style="margin-bottom:18px">
-      <div class="ab-tag">Encerrando o dia</div>
-      <div class="ab-titulo">Fechamento</div>
-      <div class="ab-sub">Conta como foi antes de fechar</div>
+    <div class="fechar-rodape">
+      <button class="btn-fechar-caixa" onclick="confirmarFecharCaixa()">⏹ Encerrar turno</button>
     </div>
-    <div class="rd" id="rd-res"></div>
-    <div class="fg"><label>Como foi o movimento?</label>
-      <select id="fech-mov">
-        <option value="">Selecione...</option>
-        <option value="tranquilo">😴 Tranquilo</option>
-        <option value="normal">😊 Normal</option>
-        <option value="agitado">🔥 Agitado</option>
-        <option value="lotado">🚀 Lotado</option>
-      </select></div>
-    <div class="fg"><label>Choveu durante o turno?</label>
-      <div class="tg">
-        <button class="tgb" id="fc-nao"     onclick="togF('fc','nao')">☀ Não</button>
-        <button class="tgb" id="fc-sim"     onclick="togF('fc','sim')">🌧 Sim</button>
-        <button class="tgb" id="fc-comecou" onclick="togF('fc','comecou')">⛅ Começou</button>
-      </div></div>
-    <div class="fg"><label>Consumiram mais o quê?</label>
-      <div class="tg">
-        <button class="tgb" id="fcon-bebida" onclick="togF('fcon','bebida')">🍺 Bebida</button>
-        <button class="tgb" id="fcon-comida" onclick="togF('fcon','comida')">🍕 Comida</button>
-        <button class="tgb" id="fcon-igual"  onclick="togF('fcon','igual')">⚖ Igual</button>
-      </div></div>
-    <div class="fg"><label>Chope teve boa saída?</label>
-      <div class="tg">
-        <button class="tgb" id="fch-nao"  onclick="togF('fch','nao')">Não</button>
-        <button class="tgb" id="fch-sim"  onclick="togF('fch','sim')">👍 Sim</button>
-        <button class="tgb" id="fch-muito" onclick="togF('fch','muito')">🔥 Voou</button>
-      </div></div>
-    <div class="fg"><label>Nota geral do dia</label>
-      <div class="nw2">
-        <button class="nb" onclick="setNota(1)">1</button>
-        <button class="nb" onclick="setNota(2)">2</button>
-        <button class="nb" onclick="setNota(3)">3</button>
-        <button class="nb" onclick="setNota(4)">4</button>
-        <button class="nb" onclick="setNota(5)">5</button>
-      </div></div>
-    <div class="fg"><label>Observações</label>
-      <textarea id="fech-obs" placeholder="Problemas, falta de produto, situação especial..."></textarea></div>
-    <button class="btn-p" onclick="fecharCaixa()">Fechar o caixa</button>
-    <button class="btn-s" onclick="mostrar('app')">Voltar</button>
   </div>
 </div>
 
-<!-- CAIXA FECHADO -->
-<div class="tela" id="tela-fechado">
-  <div class="fi">
-    <div class="fi-ic">🔒</div>
-    <div class="fi-tt">Caixa fechado</div>
-    <div class="fi-sb" id="fi-msg">O caixa foi encerrado.</div>
-    <button class="btn-s" style="max-width:200px;margin:0 auto" onclick="init()">Abrir novo caixa</button>
-  </div>
-</div>
 
 <div id="modal" onclick="if(event.target===this)fecharModal()">
   <div class="mb" id="modal-box"></div>
@@ -686,8 +542,7 @@ function onSnapshot(q, cb, errCb){
 ═══════════════════════════════════════════════════════════ */
 let sid='', nome='', sdoc=null;
 let unsubCmd=null, unsubCP=null, unsubSessao=null;
-let sel={}, _cp=null, nota=0;
-const togs={}, togsF={};
+let sel={}, _cp=null;
 
 /* ══ CARDÁPIO FALLBACK ════════════════════════════════════ */
 const CPF=[
@@ -741,24 +596,7 @@ function escutarCardapio(){
   }
 }
 
-/* ══ INIT — LÓGICA DE SESSÃO ROBUSTA ═════════════════════
-   Arquitetura nova:
-   - Sessão tem ID próprio (UUID do Firestore), NÃO é a data
-   - Data fica como campo, não como ID
-   - Isso permite múltiplas sessões no mesmo dia sem conflito
-   - localStorage guarda o ID da sessão ativa
-   - Se o ID salvo ainda estiver aberto → entra direto
-   - Se não → busca qualquer sessão com status='aberto'
-   - Se não achar → mostra tela de abertura
-═══════════════════════════════════════════════════════════ */
-/* ══ SESSÃO CANÔNICA ═════════════════════════════════════════
-   Se existirem MÚLTIPLAS sessões abertas ao mesmo tempo (ex: duas
-   pessoas abriram o caixa sem saber que já estava aberto), todo
-   mundo precisa convergir pra UMA SÓ — sempre a mais ANTIGA
-   (abertoEm asc), que é a "oficial" do dia.
-   Retorna {id, data} da sessão canônica, ou null se não houver
-   nenhuma sessão aberta.
-═══════════════════════════════════════════════════════════════ */
+/* ══ SESSÃO CANÔNICA — busca sempre a sessão aberta mais antiga ═ */
 async function buscarSessaoCanonica(){
   const snap=await getDocs(query(
     collection(db,'sessoes'),
@@ -773,55 +611,45 @@ async function buscarSessaoCanonica(){
 async function init(){
   mostrar('loading');
   desligarListeners();
+  sid=''; nome=''; sdoc=null; sel={};
 
-  sid=''; nome=''; sdoc=null;
-  sel={}; nota=0;
-  Object.keys(togs).forEach(k=>delete togs[k]);
-  Object.keys(togsF).forEach(k=>delete togsF[k]);
+  // Lê de localStorage E sessionStorage — o sessionStorage sobrevive
+  // melhor quando o Safari está com pouca memória
+  const sn=localStorage.getItem('s_nome')||sessionStorage.getItem('s_nome');
+  const ss=localStorage.getItem('s_sid')||sessionStorage.getItem('s_sid');
 
-  const sn=localStorage.getItem('s_nome');
-  const ss=localStorage.getItem('s_sid');
-
-  // Timeout de segurança — se após 4s ainda estiver no loading,
-  // força a entrada no app com os dados locais. Isso resolve o
-  // "loading eterno" no Safari/iOS quando a rede demora no boot.
-  const safetyTimer=setTimeout(()=>{
-    if(document.getElementById('tela-loading').classList.contains('ativa')){
-      console.warn('Loading timeout — forçando entrada com dados locais');
-      if(sn && ss){
-        nome=sn; sid=ss; sdoc={abertoPor:sn,data:dHoje()};
-        iniciarApp();
-      } else {
-        document.getElementById('ab-data').value=dHoje();
-        mostrar('abertura');
-      }
-    }
-  }, 4000);
-
+  // CAMINHO RÁPIDO — tem nome e sessão salvos, entra direto sem esperar Firebase
   if(sn && ss){
-    // Caminho rápido: entra DIRETO sem await, não bloqueia na rede
     nome=sn; sid=ss; sdoc={abertoPor:sn,data:dHoje()};
-    clearTimeout(safetyTimer);
-    iniciarApp(); // sem await — não bloqueia
+    iniciarApp();
     validarSessaoEmBackground();
     return;
   }
 
-  // Sem sessão local → precisa buscar no Firebase antes de mostrar algo
+  // SEM SESSÃO LOCAL — busca no Firebase
+  const safetyTimer=setTimeout(()=>{
+    if(document.getElementById('tela-loading')?.classList.contains('ativa')){
+      renderDiaInfo({}); mostrar('entrar');
+    }
+  }, 5000);
+
   let canon=null;
   try{ canon=await buscarSessaoCanonica(); }
-  catch(e){ console.warn('Erro ao buscar sessão canônica:',e); }
+  catch(e){ console.warn('Erro ao buscar sessão:',e); }
   clearTimeout(safetyTimer);
 
-  if(canon){
-    sdoc=canon.data; sid=canon.id;
-    renderDiaInfo(sdoc);
-    mostrar('entrar');
+  if(canon){ sdoc=canon.data; sid=canon.id; }
+
+  // Se tem nome salvo (mesmo sem sid), preenche e entra automaticamente
+  if(sn && canon){
+    nome=sn; salvarLocal(sn, canon.id);
+    iniciarApp();
     return;
   }
 
-  document.getElementById('ab-data').value=dHoje();
-  mostrar('abertura');
+  renderDiaInfo(sdoc||{});
+  if(sn) document.getElementById('en-nome').value=sn;
+  mostrar('entrar');
 }
 
 /* ══ VALIDAÇÃO EM BACKGROUND ══════════════════════════════════
@@ -830,37 +658,33 @@ async function init(){
    Isso não bloqueia mais o carregamento inicial.
 ═══════════════════════════════════════════════════════════════ */
 async function validarSessaoEmBackground(){
+  // Só valida se tiver conexão — sem rede, mantém o que está
+  // Erro de rede não deve expulsar a garçonete durante o turno
   try{
-    const canon=await buscarSessaoCanonica();
-    if(!canon){
-      // Nenhuma sessão aberta — a sessão local não existe mais
-      localStorage.removeItem('s_sid');
-      toast('O caixa foi encerrado.');
+    const snap=await getDoc(doc(db,'sessoes',sid));
+    if(snap.exists() && snap.data().status==='aberto'){
+      // Sessão ainda aberta — atualiza dados locais silenciosamente
+      sdoc=snap.data();
+      // Verifica se existe sessão mais antiga (duplicidade)
+      const canon=await buscarSessaoCanonica();
+      if(canon && canon.id!==sid){
+        // Migra para a canônica silenciosamente
+        sid=canon.id; sdoc=canon.data;
+        salvarLocal(nome,sid);
+        desligarListeners();
+        escutarComandas();
+        escutarCardapio();
+        escutarSessao();
+      }
+    } else if(snap.exists() && snap.data().status==='fechado'){
+      // Sessão foi explicitamente fechada — aí sim avisa
+      localStorage.removeItem('s_sid'); sessionStorage.removeItem('s_sid');
+      toast('O turno foi encerrado.');
       setTimeout(()=>init(), 1500);
-      return;
     }
-    if(canon.id!==sid){
-      // Sessão divergente — migra silenciosamente
-      console.warn('Sessão divergente detectada em background — migrando para:',canon.id);
-      sid=canon.id; sdoc=canon.data;
-      salvarLocal(nome,sid);
-      try{
-        const eq=sdoc.equipe||[];
-        if(!eq.includes(nome)){
-          eq.push(nome);
-          await updateDoc(doc(db,'sessoes',sid),{equipe:eq});
-          sdoc.equipe=eq;
-        }
-      }catch(e){}
-      desligarListeners();
-      escutarComandas();
-      escutarCardapio();
-      escutarSessao();
-      toast('Sessão sincronizada com a equipe.');
-    } else {
-      sdoc=canon.data; // atualiza dados da sessão (aviso, equipe, etc)
-    }
+    // Se não existe o documento, não faz nada — pode ser erro de rede
   }catch(e){
+    // Sem rede ou erro — mantém a sessão atual sem interromper
     console.warn('Validação em background falhou (sem rede?):',e);
   }
 }
@@ -881,16 +705,13 @@ init();
      init() roda normalmente ao carregar, busca sessão pelo localStorage.
 ═══════════════════════════════════════════════════════════ */
 window.addEventListener('pageshow', e=>{
-  if(!e.persisted) return; // carregamento normal, init() já rodou
-  // Página restaurada do BFCache — variáveis em memória intactas
+  if(!e.persisted) return;
   if(sid && nome){
-    // Só reconecta listeners, não chama init() (evita flicker de tela)
-    desligarListeners();
-    escutarComandas();
-    escutarCardapio();
-    escutarSessao();
+    // BFCache restaurou a página — reconecta só os que caíram
+    if(!unsubCmd) escutarComandas();
+    if(!unsubCP)  escutarCardapio();
+    if(!unsubSessao) escutarSessao();
   } else {
-    // Memória foi perdida (raro no BFCache mas possível) — re-inicializa
     init();
   }
 });
@@ -914,7 +735,7 @@ document.addEventListener('visibilitychange', async ()=>{
           if(!unsubSessao) escutarSessao();
           renderAvisoBanner(sdoc.aviso||'');
         } else {
-          localStorage.removeItem('s_sid');
+          localStorage.removeItem('s_sid'); sessionStorage.removeItem('s_sid');
           init();
         }
       }catch(e){
@@ -942,22 +763,22 @@ setInterval(async ()=>{
     const snap=await getDoc(doc(db,'sessoes',sid));
     if(snap.exists() && snap.data().status==='aberto'){
       sdoc=snap.data();
-      // Só recria listeners se tiverem caído
       if(!unsubCmd) escutarComandas();
       if(!unsubCP)  escutarCardapio();
       if(!unsubSessao) escutarSessao();
       renderAvisoBanner(sdoc.aviso||'');
-      // Tenta reenviar rascunhos pendentes, se houver
       reenviarRascunhosPendentes();
-      // Verifica e funde sessões duplicadas, se surgirem
       fundirSessoesDuplicadas();
-    } else {
-      localStorage.removeItem('s_sid');
-      toast('O caixa foi encerrado por outro dispositivo.');
+    } else if(snap.exists() && snap.data().status==='fechado'){
+      // Sessão foi explicitamente fechada — aí sim avisa e volta
+      localStorage.removeItem('s_sid'); sessionStorage.removeItem('s_sid');
+      toast('O turno foi encerrado.');
       setTimeout(()=>init(), 2000);
     }
+    // Se doc não existe (erro de rede), não faz nada — seguro
   }catch(e){
-    console.warn('Keepalive: sem conexão, verificando listeners');
+    // Sem rede — reconecta listeners se caíram, não expulsa ninguém
+    console.warn('Keepalive: sem conexão');
     if(!unsubCmd) escutarComandas();
     if(!unsubCP)  escutarCardapio();
     if(!unsubSessao) escutarSessao();
@@ -1022,92 +843,55 @@ function desligarListeners(){
   _globaisCache=[];
 }
 
-/* ══ TOGGLES ══════════════════════════════════════════════
-   Cada grupo tem seus IDs explícitos para evitar colisão
-   entre grupos com prefixos similares (fc, fch, fcon)
-═══════════════════════════════════════════════════════════ */
-const TOGGLE_IDS={
-  chuva:  ['chuva-nao','chuva-sim'],
-  evento: ['evento-nao','evento-sim'],
-  fc:     ['fc-nao','fc-sim','fc-comecou'],
-  fcon:   ['fcon-bebida','fcon-comida','fcon-igual'],
-  fch:    ['fch-nao','fch-sim','fch-muito']
-};
-
-window.tog=function(g,v){
-  togs[g]=v;
-  (TOGGLE_IDS[g]||[]).forEach(id=>document.getElementById(id)?.classList.remove('on','on2'));
-  document.getElementById(`${g}-${v}`)?.classList.add(v==='sim'?'on':'on2');
-  if(g==='evento') document.getElementById('ev-x').classList.toggle('vis',v==='sim');
-}
-window.togF=function(g,v){
-  togsF[g]=v;
-  (TOGGLE_IDS[g]||[]).forEach(id=>document.getElementById(id)?.classList.remove('on','on2'));
-  document.getElementById(`${g}-${v}`)?.classList.add('on');
-}
-window.setNota=function(n){ nota=n; document.querySelectorAll('.nb').forEach((b,i)=>b.classList.toggle('on',i<n)); }
-
-/* ══ ABRIR CAIXA ══════════════════════════════════════════
-   Agora usa addDoc → ID gerado pelo Firestore (não é a data)
-   Isso evita sobrescrever sessão existente ao abrir de novo
-   no mesmo dia ou por engano
-═══════════════════════════════════════════════════════════ */
-window.abrirCaixa=async function(){
-  const n=document.getElementById('ab-nome').value.trim();
-  const d=document.getElementById('ab-data').value;
-  const ms=parseInt(document.getElementById('ab-mesas').value)||0;
-  const ex=document.getElementById('ab-exp').value;
-  if(!n){toast('Informe seu nome');return;}
-  if(!d){toast('Informe a data');return;}
-  if(!ex){toast('Selecione a expectativa');return;}
-
-  const sessao={
-    data:d, abertoPor:n, abertoEm:serverTimestamp(), mesas:ms,
-    chuvaAbertura:togs['chuva']||'nao',
-    evento:togs['evento']==='sim',
-    eventoNome:togs['evento']==='sim'?(document.getElementById('ev-nm').value.trim()):'',
-    expectativa:ex,
-    obsAbertura:document.getElementById('ab-obs').value.trim(),
-    status:'aberto', equipe:[n]
-  };
-  try{
-    document.getElementById('btn-abrir').disabled=true;
-    const ref=await addDoc(collection(db,'sessoes'),sessao);
-    sid=ref.id; sdoc=sessao; nome=n;
-    salvarLocal(n,ref.id);
-    await iniciarApp();
-  }catch(e){
-    console.error('abrirCaixa:',e);
-    toast('Erro ao abrir: '+e.message);
-    const btnAbrir=document.getElementById('btn-abrir');
-    btnAbrir.disabled=false;
-    btnAbrir.textContent='Abrir caixa →';
+/* ══ ENTRAR ═══════════════════════════════════════════════ */
+function renderDiaInfo(s){
+  // Mostra modo rápido se já tem nome salvo
+  const sn=localStorage.getItem('s_nome');
+  if(sn){
+    document.getElementById('en-rapido').style.display='block';
+    document.getElementById('en-form').style.display='none';
+    document.getElementById('btn-rapido').textContent=`Entrar como ${sn} →`;
+    document.getElementById('en-nome').value=sn;
+  } else {
+    document.getElementById('en-rapido').style.display='none';
+    document.getElementById('en-form').style.display='block';
   }
 }
 
-/* ══ ENTRAR ═══════════════════════════════════════════════ */
-function renderDiaInfo(s){
-  document.getElementById('dia-box').innerHTML=`
-    <div class="dia-row"><span>Aberto por</span><span>${s.abertoPor}</span></div>
-    <div class="dia-row"><span>Data</span><span>${fmtData(s.data)}</span></div>
-    <div class="dia-row"><span>Mesas</span><span>${s.mesas||'—'}</span></div>
-    <div class="dia-row"><span>Expectativa</span><span>${s.expectativa||'—'}</span></div>
-    ${s.evento?`<div class="dia-ev">🎉 ${s.eventoNome||'Evento hoje'}</div>`:''}
-  `;
+window.trocarNome=function(){
+  localStorage.removeItem('s_nome');
+  document.getElementById('en-rapido').style.display='none';
+  document.getElementById('en-form').style.display='block';
+  document.getElementById('en-nome').value='';
+  setTimeout(()=>document.getElementById('en-nome').focus(),100);
 }
 window.entrarSessao=async function(){
   const n=document.getElementById('en-nome').value.trim();
   if(!n){toast('Informe seu nome');return;}
-  nome=n; salvarLocal(n,sid);
-  try{
-    const eq=sdoc.equipe||[];
-    if(!eq.includes(n)){
-      eq.push(n);
-      await updateDoc(doc(db,'sessoes',sid),{equipe:eq});
-      sdoc.equipe=eq;
-    }
-  }catch(e){}
-  await iniciarApp();
+  nome=n;
+
+  if(!sid){
+    // Não existe sessão — cria uma automaticamente
+    try{
+      const ref=await addDoc(collection(db,'sessoes'),{
+        data:dHoje(), status:'aberto',
+        abertoPor:n, abertoEm:serverTimestamp(), equipe:[n]
+      });
+      sid=ref.id; sdoc={data:dHoje(),abertoPor:n,equipe:[n]};
+    }catch(e){ toast('Erro ao iniciar: '+e.message); return; }
+  } else {
+    // Sessão já existe — adiciona à equipe
+    try{
+      const eq=sdoc?.equipe||[];
+      if(!eq.includes(n)){
+        eq.push(n);
+        await updateDoc(doc(db,'sessoes',sid),{equipe:eq});
+        if(sdoc) sdoc.equipe=eq;
+      }
+    }catch(e){}
+  }
+  salvarLocal(n,sid);
+  iniciarApp();
 }
 
 /* ══ INICIAR APP ══════════════════════════════════════════ */
@@ -1509,10 +1293,13 @@ function renderAbertas(visiveis, ocultas){
 }
 
 window.filtrarComandas=function(v){
-  const filtradas=v?_abertasAll.filter(c=>c.cliente.toLowerCase().includes(v.toLowerCase())):_abertasAll;
-  // Re-renderiza com o filtro
+  // Ocultas aparecem sempre, independente da pesquisa
   const ocultas=_globaisCache.filter(c=>c.oculta);
-  renderAbertas(filtradas,ocultas);
+  // Visiveis: filtra pelo texto OU mostra todas se campo vazio
+  const visiveis=v.trim()
+    ?_abertasAll.filter(c=>c.cliente.toLowerCase().includes(v.toLowerCase()))
+    :[..._abertasAll]; // cópia de todas quando campo vazio
+  renderAbertas(visiveis, ocultas);
 }
 
 window.ocultarComanda=async function(cmdId){
@@ -1830,85 +1617,37 @@ window.reabrirComanda=async function(cmdId,cli){
 }
 
 /* ══ FECHAMENTO ═══════════════════════════════════════════ */
-window.irFechamento=function(){
-  const n=document.querySelectorAll('#lista-cmd .cc').length;
-  document.getElementById('rd-res').innerHTML=`
-    <div class="rdr"><span class="rdl">Comandas abertas</span><span class="rdv">${n}</span></div>
-    <div class="rdr"><span class="rdl">Data</span><span style="font-weight:500">${fmtData(sdoc?.data)}</span></div>
-    <div class="rdr"><span class="rdl">Aberto por</span><span style="font-weight:500">${sdoc?.abertoPor||'—'}</span></div>
-  `;
-  mostrar('fechamento');
-}
-
-window.fecharCaixa=async function(){
-  if(!togsF['fc'])  {toast('Como foi a chuva?');return;}
-  if(!togsF['fcon']){toast('Consumiram mais o quê?');return;}
-  if(!togsF['fch']) {toast('E o chope?');return;}
-  if(!document.getElementById('fech-mov').value){toast('Como foi o movimento?');return;}
-  if(!nota){toast('Dê uma nota pro dia');return;}
-
-  // Verifica só comandas ABERTAS (não pendentes — essas são intencionais)
-  try{
-    const snap=await getDocs(query(
-      collection(db,'comandas'),
-      where('status','==','aberta')
-    ));
-    if(!snap.empty){
-      mostrarAvisoComandasAbertas(snap.size);
-      return;
-    }
-  }catch(e){
-    // Se não conseguir verificar, melhor não arriscar — avisa e deixa
-    // a pessoa decidir conscientemente
-    mostrarAvisoComandasAbertas(null);
-    return;
-  }
-
-  await executarFechamento();
-}
-
-/* ══ AVISO DE COMANDAS ABERTAS ════════════════════════════
-   Bloqueia fechamento acidental. A pessoa precisa confirmar
-   explicitamente que sabe que há comandas em aberto.
-═══════════════════════════════════════════════════════════ */
-function mostrarAvisoComandasAbertas(qtd){
-  const msg = qtd===null
-    ? 'Não foi possível verificar as comandas abertas (sem conexão). Tem certeza que quer fechar o caixa mesmo assim?'
-    : `Ainda ${qtd===1?'há 1 comanda aberta':`há ${qtd} comandas abertas`} que não foram marcadas como pagas.`;
+window.confirmarFecharCaixa=function(){
   document.getElementById('modal-box').innerHTML=`
-    <div class="mt">⚠ Atenção</div>
-    <div class="ms">${msg}</div>
+    <div class="mt">⏹ Encerrar turno</div>
+    <div class="ms">Digite a senha para encerrar o turno. Comandas abertas continuarão salvas.</div>
+    <div class="fg">
+      <input type="password" id="fc-senha" placeholder="Senha" maxlength="20"
+        onkeydown="if(event.key==='Enter')executarFecharCaixa()"
+        style="font-size:18px;letter-spacing:4px"/>
+    </div>
     <div class="mbtns">
-      <button class="bmc" onclick="fecharModal()">Voltar e revisar</button>
-      <button class="bmo-r" onclick="fecharModal();executarFechamento()">Fechar mesmo assim</button>
+      <button class="bmc" onclick="fecharModal()">Cancelar</button>
+      <button class="bmo" onclick="executarFecharCaixa()">Encerrar</button>
     </div>`;
   document.getElementById('modal').classList.add('show');
+  setTimeout(()=>document.getElementById('fc-senha')?.focus(),100);
 }
 
-async function executarFechamento(){
+window.executarFecharCaixa=async function(){
+  const senha=document.getElementById('fc-senha')?.value;
+  if(senha!=='salsa123'){ toast('Senha incorreta'); return; }
+  fecharModal();
   try{
-    const snap=await getDocs(query(collection(db,'comandas'),where('sessaoId','==',sid)));
-    const cmds=snap.docs.map(d=>d.data());
-    const totalF=cmds.filter(c=>c.status==='paga').reduce((a,c)=>a+(c.total||0),0);
     await updateDoc(doc(db,'sessoes',sid),{
-      status:'fechado', fechadoPor:nome, fechadoEm:serverTimestamp(),
-      totalFaturado:totalF, totalComandas:cmds.length,
-      fechamento:{
-        movimento:document.getElementById('fech-mov').value,
-        chuva:togsF['fc'], consumo:togsF['fcon'], chope:togsF['fch'],
-        nota, obs:document.getElementById('fech-obs').value.trim()
-      }
+      status:'fechado', fechadoPor:nome, fechadoEm:serverTimestamp()
     });
     desligarListeners();
-    localStorage.removeItem('s_sid');
-    document.getElementById('fi-msg').textContent=`Caixa fechado por ${nome}. Bom descanso!`;
-    mostrar('fechado');
-  }catch(e){
-    console.error('fecharCaixa:',e);
-    toast('Erro ao fechar: '+e.message+' — tente novamente.');
-  }
+    localStorage.removeItem('s_sid'); sessionStorage.removeItem('s_sid');
+    toast('Turno encerrado. Bom descanso!');
+    setTimeout(()=>init(), 1500);
+  }catch(e){ toast('Erro ao encerrar: '+e.message); }
 }
-window.executarFechamento=executarFechamento;
 
 /* ══ HELPERS ══════════════════════════════════════════════ */
 function mostrar(id){
@@ -1942,7 +1681,12 @@ window.fecharModal=function(){document.getElementById('modal').classList.remove(
 function dHoje(){return new Date().toISOString().slice(0,10);}
 function fmtData(d){if(!d)return'—';const[y,m,dia]=d.split('-');return`${dia}/${m}/${y}`;}
 function esc(s){return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');}
-function salvarLocal(n,s){localStorage.setItem('s_nome',n);localStorage.setItem('s_sid',s);}
+function salvarLocal(n,s){
+  localStorage.setItem('s_nome',n);
+  localStorage.setItem('s_sid',s);
+  sessionStorage.setItem('s_nome',n); // backup — sobrevive melhor no Safari
+  sessionStorage.setItem('s_sid',s);
+}
 
 let tT;
 window.toast=function(msg){
